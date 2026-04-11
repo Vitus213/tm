@@ -9,3 +9,6 @@ anyhow.workspace = true
 chrono.workspace = true
 sqlx.workspace = true
 tm-core = { path = "../core" }
+
+[dev-dependencies]
+tokio.workspace = true

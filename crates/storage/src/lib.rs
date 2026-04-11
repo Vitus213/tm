@@ -1,3 +1,4 @@
-pub fn storage_ready() -> &'static str {
-    "tm-storage-ready"
-}
+mod repository;
+mod schema;
+
+pub use repository::SqliteRepository;
