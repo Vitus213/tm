@@ -1,7 +1,7 @@
 use std::{borrow::Cow, io};
 
 use chrono::{DateTime, Utc};
-use niri_ipc::{socket::Socket, Reply, Request, Response, Window};
+use niri_ipc::{Reply, Request, Response, Window, socket::Socket};
 use thiserror::Error;
 use tm_core::ActivityEvent;
 
@@ -30,7 +30,7 @@ pub enum TrackerError {
     #[error("niri returned an error: {0}")]
     Niri(String),
     #[error("unexpected niri response: {0:?}")]
-    UnexpectedReply(Response),
+    UnexpectedReply(Box<Response>),
     #[error("niri reported invalid pid: {0}")]
     InvalidPid(i32),
 }
@@ -57,7 +57,7 @@ fn snapshot_from_reply(
         Ok(Response::FocusedWindow(window)) => window
             .map(|window| snapshot_from_window(window, observed_at))
             .transpose(),
-        Ok(other) => Err(TrackerError::UnexpectedReply(other)),
+        Ok(other) => Err(TrackerError::UnexpectedReply(Box::new(other))),
         Err(message) => Err(TrackerError::Niri(message)),
     }
 }
@@ -92,8 +92,11 @@ mod tests {
     #[test]
     fn helper_defaults_missing_title_to_empty_string() {
         let observed_at = Utc::now();
-        let snapshot = snapshot_from_window(sample_window(None, Some("firefox".into()), Some(77)), observed_at)
-            .expect("snapshot should build");
+        let snapshot = snapshot_from_window(
+            sample_window(None, Some("firefox".into()), Some(77)),
+            observed_at,
+        )
+        .expect("snapshot should build");
 
         assert_eq!(snapshot.title, "");
         assert_eq!(snapshot.observed_at, observed_at);
@@ -134,7 +137,10 @@ mod tests {
             .expect_err("unexpected reply should fail");
 
         match error {
-            TrackerError::UnexpectedReply(Response::Version(version)) => assert_eq!(version, "25.0"),
+            TrackerError::UnexpectedReply(reply) => match *reply {
+                Response::Version(version) => assert_eq!(version, "25.0"),
+                other => panic!("unexpected response payload: {other:?}"),
+            },
             other => panic!("unexpected error: {other:?}"),
         }
     }

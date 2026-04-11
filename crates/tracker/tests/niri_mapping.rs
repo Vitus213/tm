@@ -1,5 +1,5 @@
 use chrono::Utc;
-use tm_tracker::{map_snapshot_to_event, FocusedWindowSnapshot};
+use tm_tracker::{FocusedWindowSnapshot, map_snapshot_to_event};
 
 #[test]
 fn focused_window_maps_to_app_focus_event() {
