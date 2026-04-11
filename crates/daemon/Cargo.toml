@@ -1,0 +1,13 @@
+[package]
+name = "tm-daemon"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+tokio.workspace = true
+tm-core = { path = "../core" }
+tm-ipc = { path = "../ipc" }
+tm-storage = { path = "../storage" }
+tm-tracker = { path = "../tracker" }
