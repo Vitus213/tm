@@ -3,13 +3,27 @@ use chrono::{DateTime, Utc};
 use crate::activity::{ActivityEvent, ActivityKind};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+/// ```compile_fail
+/// use chrono::Utc;
+/// use tm_core::{ActivityKind, ClosedSession};
+///
+/// let now = Utc::now();
+/// let _ = ClosedSession {
+///     kind: ActivityKind::App,
+///     subject_id: "wezterm".to_owned(),
+///     title: "shell".to_owned(),
+///     started_at: now,
+///     ended_at: now,
+///     duration_seconds: 0,
+/// };
+/// ```
 pub struct ClosedSession {
-    pub kind: ActivityKind,
-    pub subject_id: String,
-    pub title: String,
-    pub started_at: DateTime<Utc>,
-    pub ended_at: DateTime<Utc>,
-    pub duration_seconds: i64,
+    kind: ActivityKind,
+    subject_id: String,
+    title: String,
+    started_at: DateTime<Utc>,
+    ended_at: DateTime<Utc>,
+    duration_seconds: i64,
 }
 
 impl ClosedSession {
@@ -29,6 +43,30 @@ impl ClosedSession {
             ended_at,
             duration_seconds,
         })
+    }
+
+    pub fn kind(&self) -> ActivityKind {
+        self.kind
+    }
+
+    pub fn subject_id(&self) -> &str {
+        &self.subject_id
+    }
+
+    pub fn title(&self) -> &str {
+        &self.title
+    }
+
+    pub fn started_at(&self) -> DateTime<Utc> {
+        self.started_at
+    }
+
+    pub fn ended_at(&self) -> DateTime<Utc> {
+        self.ended_at
+    }
+
+    pub fn duration_seconds(&self) -> i64 {
+        self.duration_seconds
     }
 
     fn from_event(event: ActivityEvent, ended_at: DateTime<Utc>) -> Option<Self> {
