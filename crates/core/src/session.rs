@@ -12,6 +12,36 @@ pub struct ClosedSession {
     pub duration_seconds: i64,
 }
 
+impl ClosedSession {
+    pub fn new(
+        kind: ActivityKind,
+        subject_id: String,
+        title: String,
+        started_at: DateTime<Utc>,
+        ended_at: DateTime<Utc>,
+    ) -> Option<Self> {
+        let duration_seconds = (ended_at - started_at).num_seconds();
+        (duration_seconds >= 0).then_some(Self {
+            kind,
+            subject_id,
+            title,
+            started_at,
+            ended_at,
+            duration_seconds,
+        })
+    }
+
+    fn from_event(event: ActivityEvent, ended_at: DateTime<Utc>) -> Option<Self> {
+        Self::new(
+            event.kind,
+            event.subject_id,
+            event.title,
+            event.occurred_at,
+            ended_at,
+        )
+    }
+}
+
 #[derive(Debug, Default)]
 pub struct SessionAccumulator {
     current: Option<ActivityEvent>,
@@ -19,28 +49,33 @@ pub struct SessionAccumulator {
 
 impl SessionAccumulator {
     pub fn ingest(&mut self, next: ActivityEvent) -> Option<ClosedSession> {
-        let previous = self.current.replace(next.clone())?;
-
-        Some(ClosedSession {
-            kind: previous.kind,
-            subject_id: previous.subject_id,
-            title: previous.title,
-            started_at: previous.occurred_at,
-            ended_at: next.occurred_at,
-            duration_seconds: (next.occurred_at - previous.occurred_at).num_seconds(),
-        })
+        match self.current.take() {
+            None => {
+                self.current = Some(next);
+                None
+            }
+            Some(previous) => match ClosedSession::from_event(previous.clone(), next.occurred_at) {
+                Some(closed) => {
+                    self.current = Some(next);
+                    Some(closed)
+                }
+                None => {
+                    self.current = Some(previous);
+                    None
+                }
+            },
+        }
     }
 
     pub fn flush(&mut self, ended_at: DateTime<Utc>) -> Option<ClosedSession> {
         let previous = self.current.take()?;
 
-        Some(ClosedSession {
-            kind: previous.kind,
-            subject_id: previous.subject_id,
-            title: previous.title,
-            started_at: previous.occurred_at,
-            ended_at,
-            duration_seconds: (ended_at - previous.occurred_at).num_seconds(),
-        })
+        match ClosedSession::from_event(previous.clone(), ended_at) {
+            Some(closed) => Some(closed),
+            None => {
+                self.current = Some(previous);
+                None
+            }
+        }
     }
 }
