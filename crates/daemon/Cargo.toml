@@ -12,6 +12,3 @@ tm-core = { path = "../core" }
 tm-ipc = { path = "../ipc" }
 tm-storage = { path = "../storage" }
 tm-tracker = { path = "../tracker" }
-
-[dev-dependencies]
-chrono.workspace = true
