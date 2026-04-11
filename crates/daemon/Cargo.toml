@@ -6,8 +6,12 @@ license.workspace = true
 
 [dependencies]
 anyhow.workspace = true
+chrono.workspace = true
 tokio.workspace = true
 tm-core = { path = "../core" }
 tm-ipc = { path = "../ipc" }
 tm-storage = { path = "../storage" }
 tm-tracker = { path = "../tracker" }
+
+[dev-dependencies]
+chrono.workspace = true

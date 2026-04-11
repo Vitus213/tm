@@ -1,3 +1,5 @@
-pub fn daemon_ready() -> &'static str {
-    "tm-daemon-ready"
-}
+mod app;
+mod session_service;
+
+pub use app::run;
+pub use session_service::SessionService;
