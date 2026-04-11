@@ -86,6 +86,10 @@ pub struct SessionAccumulator {
 }
 
 impl SessionAccumulator {
+    pub fn has_active_session(&self) -> bool {
+        self.current.is_some()
+    }
+
     pub fn ingest(&mut self, next: ActivityEvent) -> Option<ClosedSession> {
         match self.current.take() {
             None => {
