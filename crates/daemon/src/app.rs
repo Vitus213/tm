@@ -1,6 +1,6 @@
 use std::{path::PathBuf, time::Duration};
 
-use anyhow::Result;
+use anyhow::{Context, Result, anyhow};
 use chrono::{DateTime, Utc};
 use tm_storage::SqliteRepository;
 use tm_tracker::{
@@ -11,27 +11,34 @@ use crate::session_service::{SessionRepository, SessionService};
 
 const POLL_INTERVAL: Duration = Duration::from_secs(1);
 
-fn default_db_path() -> PathBuf {
+pub(crate) fn default_db_path() -> Result<PathBuf> {
     db_path_from_env(
         std::env::var_os("XDG_DATA_HOME").map(PathBuf::from),
         std::env::var_os("HOME").map(PathBuf::from),
     )
 }
 
-fn db_path_from_env(xdg_data_home: Option<PathBuf>, home: Option<PathBuf>) -> PathBuf {
-    xdg_data_home
-        .unwrap_or_else(|| {
-            let mut path = home.expect("HOME must be set");
+pub(crate) fn db_path_from_env(
+    xdg_data_home: Option<PathBuf>,
+    home: Option<PathBuf>,
+) -> Result<PathBuf> {
+    let data_dir = match xdg_data_home {
+        Some(path) => path,
+        None => {
+            let mut path =
+                home.ok_or_else(|| anyhow!("HOME is not set; cannot resolve database path"))?;
             path.push(".local");
             path.push("share");
             path
-        })
-        .join("tm")
-        .join("tm.db")
+        }
+    };
+
+    Ok(data_dir.join("tm").join("tm.db"))
 }
 
 pub async fn run() -> Result<()> {
-    let repo = SqliteRepository::open_at(default_db_path()).await?;
+    let db_path = default_db_path().context("failed to resolve daemon database path")?;
+    let repo = SqliteRepository::open_at(db_path).await?;
     let mut service = SessionService::new(repo);
     let mut previous_focus = None;
     let mut interval = tokio::time::interval(POLL_INTERVAL);
@@ -57,7 +64,7 @@ async fn poll_tracker_once<R>(
 where
     R: SessionRepository,
 {
-    match focused_window_once() {
+    match tokio::task::spawn_blocking(focused_window_once).await? {
         Ok(snapshot) => apply_focus_snapshot(service, previous_focus, snapshot).await?,
         Err(error) => {
             eprintln!("tm-daemon: tracker poll failed: {error}");
@@ -83,7 +90,9 @@ where
             *previous_focus = Some(current);
         }
         None => {
-            *previous_focus = None;
+            if previous_focus.take().is_some() {
+                flush_active_session(service, Utc::now()).await?;
+            }
         }
     }
 
@@ -106,7 +115,7 @@ mod tests {
     use std::path::PathBuf;
 
     use super::{apply_focus_snapshot, db_path_from_env};
-    use chrono::{TimeZone, Utc};
+    use chrono::{Duration, Utc};
     use tm_storage::SqliteRepository;
     use tm_tracker::FocusedWindowSnapshot;
 
@@ -117,14 +126,15 @@ mod tests {
         let path = db_path_from_env(
             Some("/tmp/tm-xdg-test".into()),
             Some("/tmp/tm-home-test".into()),
-        );
+        )
+        .unwrap();
 
         assert_eq!(path, PathBuf::from("/tmp/tm-xdg-test/tm/tm.db"));
     }
 
     #[test]
     fn db_path_falls_back_to_home_local_share() {
-        let path = db_path_from_env(None, Some("/tmp/tm-home-test".into()));
+        let path = db_path_from_env(None, Some("/tmp/tm-home-test".into())).unwrap();
 
         assert_eq!(
             path,
@@ -132,71 +142,70 @@ mod tests {
         );
     }
 
+    #[test]
+    fn db_path_missing_home_returns_error_instead_of_panicking() {
+        let error = db_path_from_env(None, None).expect_err("missing HOME should return an error");
+        assert!(
+            error.to_string().contains("HOME is not set"),
+            "unexpected error: {error:#}"
+        );
+    }
+
     #[tokio::test]
-    async fn focus_loss_clears_cache_so_same_window_can_emit_again() {
+    async fn focus_loss_closes_active_session_at_gap_start_and_same_window_can_emit_again() {
         let repo = SqliteRepository::in_memory().await.unwrap();
         let mut service = SessionService::new(repo);
         let mut previous_focus = None;
+        let started_at = Utc::now() - Duration::minutes(10);
 
         apply_focus_snapshot(
             &mut service,
             &mut previous_focus,
-            Some(sample_snapshot(7, Some("firefox"), "Rust docs", 9, 0, 0)),
+            Some(sample_snapshot(7, Some("firefox"), "Rust docs", started_at)),
         )
         .await
         .unwrap();
+
+        let no_focus_before = Utc::now();
         apply_focus_snapshot(&mut service, &mut previous_focus, None)
             .await
             .unwrap();
+        let no_focus_after = Utc::now();
+
+        let resumed_at = no_focus_after + Duration::minutes(5);
         apply_focus_snapshot(
             &mut service,
             &mut previous_focus,
-            Some(sample_snapshot(7, Some("firefox"), "Rust docs", 9, 5, 0)),
+            Some(sample_snapshot(7, Some("firefox"), "Rust docs", resumed_at)),
         )
         .await
         .unwrap();
-        service
-            .flush(Utc.with_ymd_and_hms(2026, 4, 12, 9, 10, 0).unwrap())
-            .await
-            .unwrap();
+
+        let flushed_at = resumed_at + Duration::minutes(5);
+        service.flush(flushed_at).await.unwrap();
 
         let sessions = service.list_sessions().await.unwrap();
 
         assert_eq!(sessions.len(), 2);
-        assert_eq!(
-            sessions[0].started_at(),
-            Utc.with_ymd_and_hms(2026, 4, 12, 9, 0, 0).unwrap()
-        );
-        assert_eq!(
-            sessions[0].ended_at(),
-            Utc.with_ymd_and_hms(2026, 4, 12, 9, 5, 0).unwrap()
-        );
-        assert_eq!(
-            sessions[1].started_at(),
-            Utc.with_ymd_and_hms(2026, 4, 12, 9, 5, 0).unwrap()
-        );
-        assert_eq!(
-            sessions[1].ended_at(),
-            Utc.with_ymd_and_hms(2026, 4, 12, 9, 10, 0).unwrap()
-        );
+        assert_eq!(sessions[0].started_at(), started_at);
+        assert!(sessions[0].ended_at() >= no_focus_before);
+        assert!(sessions[0].ended_at() <= no_focus_after);
+        assert_eq!(sessions[1].started_at(), resumed_at);
+        assert_eq!(sessions[1].ended_at(), flushed_at);
     }
 
     fn sample_snapshot(
         window_id: u64,
         app_id: Option<&str>,
         title: &str,
-        hour: u32,
-        minute: u32,
-        second: u32,
+        observed_at: chrono::DateTime<Utc>,
     ) -> FocusedWindowSnapshot {
         FocusedWindowSnapshot {
             window_id,
             app_id: app_id.map(str::to_owned),
             title: title.to_owned(),
             pid: Some(4242),
-            observed_at: Utc
-                .with_ymd_and_hms(2026, 4, 12, hour, minute, second)
-                .unwrap(),
+            observed_at,
         }
     }
 }
