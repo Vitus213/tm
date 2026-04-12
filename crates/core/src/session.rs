@@ -1,0 +1,123 @@
+use chrono::{DateTime, Utc};
+
+use crate::activity::{ActivityEvent, ActivityKind};
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+/// ```compile_fail
+/// use chrono::Utc;
+/// use tm_core::{ActivityKind, ClosedSession};
+///
+/// let now = Utc::now();
+/// let _ = ClosedSession {
+///     kind: ActivityKind::App,
+///     subject_id: "wezterm".to_owned(),
+///     title: "shell".to_owned(),
+///     started_at: now,
+///     ended_at: now,
+///     duration_seconds: 0,
+/// };
+/// ```
+pub struct ClosedSession {
+    kind: ActivityKind,
+    subject_id: String,
+    title: String,
+    started_at: DateTime<Utc>,
+    ended_at: DateTime<Utc>,
+    duration_seconds: i64,
+}
+
+impl ClosedSession {
+    pub fn new(
+        kind: ActivityKind,
+        subject_id: String,
+        title: String,
+        started_at: DateTime<Utc>,
+        ended_at: DateTime<Utc>,
+    ) -> Option<Self> {
+        let duration_seconds = (ended_at - started_at).num_seconds();
+        (duration_seconds >= 0).then_some(Self {
+            kind,
+            subject_id,
+            title,
+            started_at,
+            ended_at,
+            duration_seconds,
+        })
+    }
+
+    pub fn kind(&self) -> ActivityKind {
+        self.kind
+    }
+
+    pub fn subject_id(&self) -> &str {
+        &self.subject_id
+    }
+
+    pub fn title(&self) -> &str {
+        &self.title
+    }
+
+    pub fn started_at(&self) -> DateTime<Utc> {
+        self.started_at
+    }
+
+    pub fn ended_at(&self) -> DateTime<Utc> {
+        self.ended_at
+    }
+
+    pub fn duration_seconds(&self) -> i64 {
+        self.duration_seconds
+    }
+
+    fn from_event(event: ActivityEvent, ended_at: DateTime<Utc>) -> Option<Self> {
+        Self::new(
+            event.kind,
+            event.subject_id,
+            event.title,
+            event.occurred_at,
+            ended_at,
+        )
+    }
+}
+
+#[derive(Debug, Default)]
+pub struct SessionAccumulator {
+    current: Option<ActivityEvent>,
+}
+
+impl SessionAccumulator {
+    pub fn has_active_session(&self) -> bool {
+        self.current.is_some()
+    }
+
+    pub fn ingest(&mut self, next: ActivityEvent) -> Option<ClosedSession> {
+        match self.current.take() {
+            None => {
+                self.current = Some(next);
+                None
+            }
+            Some(previous) => match ClosedSession::from_event(previous.clone(), next.occurred_at) {
+                Some(closed) => {
+                    self.current = Some(next);
+                    Some(closed)
+                }
+                None => {
+                    self.current = Some(previous);
+                    None
+                }
+            },
+        }
+    }
+
+    pub fn flush(&mut self, ended_at: DateTime<Utc>) -> Option<ClosedSession> {
+        let previous = self.current.take()?;
+
+        match ClosedSession::from_event(previous.clone(), ended_at) {
+            Some(closed) => Some(closed),
+            None => {
+                self.current = Some(previous);
+                None
+            }
+        }
+    }
+}
