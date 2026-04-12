@@ -1,5 +1,9 @@
 use chrono::{DateTime, Utc};
-use sqlx::{Row, SqlitePool, sqlite::SqlitePoolOptions};
+use sqlx::{
+    Row, SqlitePool,
+    sqlite::{SqliteConnectOptions, SqlitePoolOptions},
+};
+use std::path::Path;
 use thiserror::Error;
 use tm_core::{ActivityKind, ClosedSession};
 
@@ -9,6 +13,8 @@ use crate::schema::BOOTSTRAP_SQL;
 pub enum RepositoryError {
     #[error(transparent)]
     Sqlx(#[from] sqlx::Error),
+    #[error(transparent)]
+    Io(#[from] std::io::Error),
     #[error("invalid activity kind stored in sqlite: {0}")]
     InvalidActivityKind(String),
     #[error("invalid stored session: {0}")]
@@ -30,7 +36,27 @@ impl SqliteRepository {
             .connect("sqlite::memory:")
             .await?;
 
-        sqlx::query(BOOTSTRAP_SQL).execute(&pool).await?;
+        bootstrap_schema(&pool).await?;
+
+        Ok(Self { pool })
+    }
+
+    pub async fn open_at(path: impl AsRef<Path>) -> Result<Self> {
+        let path = path.as_ref();
+
+        if let Some(parent) = path.parent() {
+            std::fs::create_dir_all(parent)?;
+        }
+
+        let options = SqliteConnectOptions::new()
+            .filename(path)
+            .create_if_missing(true);
+        let pool = SqlitePoolOptions::new()
+            .max_connections(1)
+            .connect_with(options)
+            .await?;
+
+        bootstrap_schema(&pool).await?;
 
         Ok(Self { pool })
     }
@@ -60,6 +86,11 @@ impl SqliteRepository {
 
         rows.into_iter().map(session_from_row).collect()
     }
+}
+
+async fn bootstrap_schema(pool: &SqlitePool) -> Result<()> {
+    sqlx::query(BOOTSTRAP_SQL).execute(pool).await?;
+    Ok(())
 }
 
 fn activity_kind_to_str(kind: ActivityKind) -> &'static str {
