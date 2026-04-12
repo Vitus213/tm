@@ -4,7 +4,7 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 use tm_core::{ActivityKind, ClosedSession};
-use tm_storage::SqliteRepository;
+use tm_storage::{RepositoryError, SqliteRepository};
 
 struct DatabaseFixture {
     root: PathBuf,
@@ -37,7 +37,6 @@ impl Drop for DatabaseFixture {
         let _ = std::fs::remove_dir_all(&self.root);
     }
 }
-
 #[tokio::test]
 async fn file_backed_repository_persists_sessions_across_reopen() {
     let fixture = DatabaseFixture::new();
@@ -62,4 +61,25 @@ async fn file_backed_repository_persists_sessions_across_reopen() {
     let sessions = reopened.list_sessions().await.unwrap();
 
     assert_eq!(sessions, vec![session]);
+}
+
+#[tokio::test]
+async fn open_at_returns_io_when_parent_path_is_a_file() {
+    let fixture = DatabaseFixture::new();
+
+    std::fs::create_dir_all(&fixture.root).unwrap();
+
+    let blocking_file = fixture.root.join("state");
+    std::fs::write(&blocking_file, b"not-a-directory").unwrap();
+
+    let db_path = blocking_file.join("sessions.sqlite");
+    let err = match SqliteRepository::open_at(&db_path).await {
+        Err(err) => err,
+        Ok(_) => panic!("expected open_at to fail when parent component is a file"),
+    };
+
+    match err {
+        RepositoryError::Io(_) => {}
+        other => panic!("expected RepositoryError::Io, got {other:?}"),
+    }
 }
