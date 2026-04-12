@@ -1,4 +1,4 @@
 mod repository;
 mod schema;
 
-pub use repository::{RepositoryError, SqliteRepository};
+pub use repository::{RepositoryError, Result, SqliteRepository};
