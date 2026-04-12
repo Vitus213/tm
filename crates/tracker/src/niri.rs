@@ -40,6 +40,20 @@ pub fn map_snapshot_to_event(snapshot: &FocusedWindowSnapshot) -> ActivityEvent 
     ActivityEvent::app_focus(subject_id.as_ref(), &snapshot.title, snapshot.observed_at)
 }
 
+pub fn should_emit_focus_event(
+    previous: Option<&FocusedWindowSnapshot>,
+    current: &FocusedWindowSnapshot,
+) -> bool {
+    match previous {
+        Some(previous) => {
+            previous.window_id != current.window_id
+                || previous.title != current.title
+                || previous.app_id != current.app_id
+        }
+        None => true,
+    }
+}
+
 pub fn focused_window_once() -> Result<Option<FocusedWindowSnapshot>, TrackerError> {
     let mut socket = Socket::connect().map_err(TrackerError::NiriIo)?;
     let reply = socket
