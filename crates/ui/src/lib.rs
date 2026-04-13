@@ -1,5 +1,6 @@
 pub mod app;
 pub mod client;
+mod format;
 pub mod pages;
 pub mod state;
 
