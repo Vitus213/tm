@@ -6,8 +6,13 @@ use tm_storage::SqliteRepository;
 use tm_tracker::{
     FocusedWindowSnapshot, focused_window_once, map_snapshot_to_event, should_emit_focus_event,
 };
+use tokio::sync::oneshot;
 
-use crate::session_service::{SessionRepository, SessionService};
+use crate::{
+    QueryService,
+    ipc_server::{bind_listener, run_ipc_server},
+    session_service::{SessionRepository, SessionService},
+};
 
 const POLL_INTERVAL: Duration = Duration::from_secs(1);
 
@@ -39,6 +44,15 @@ pub(crate) fn db_path_from_env(
 pub async fn run() -> Result<()> {
     let db_path = default_db_path().context("failed to resolve daemon database path")?;
     let repo = SqliteRepository::open_at(db_path).await?;
+
+    let (listener, socket_path) = bind_listener().await?;
+    let (shutdown_tx, shutdown_rx) = oneshot::channel();
+    let ipc_task = tokio::spawn(run_ipc_server(
+        listener,
+        QueryService::new(repo.clone()),
+        shutdown_rx,
+    ));
+
     let mut service = SessionService::new(repo);
     let mut previous_focus = None;
     let mut interval = tokio::time::interval(POLL_INTERVAL);
@@ -48,6 +62,9 @@ pub async fn run() -> Result<()> {
             result = tokio::signal::ctrl_c() => {
                 result?;
                 flush_active_session(&mut service, Utc::now()).await?;
+                let _ = shutdown_tx.send(());
+                ipc_task.await??;
+                let _ = std::fs::remove_file(socket_path);
                 return Ok(());
             }
             _ = interval.tick() => {

@@ -8,6 +8,7 @@ license.workspace = true
 anyhow.workspace = true
 async-trait.workspace = true
 chrono.workspace = true
+serde_json.workspace = true
 tokio.workspace = true
 tm-core = { path = "../core" }
 tm-ipc = { path = "../ipc" }
