@@ -1,17 +1,89 @@
+use chrono::{TimeZone, Utc};
 use serde_json::json;
-use tm_ipc::{DaemonCommand, DaemonEvent};
+use tm_core::ActivityKind;
+use tm_ipc::{
+    ActivityFilter, DaemonCommand, DaemonEvent, DaemonRequest, DaemonResponse, OverviewResponse,
+    SessionRow, SessionsQuery, SummaryBucket, TimeRange,
+};
 
 #[test]
-fn serializes_command_and_event_to_explicit_tagged_wire_format() {
-    let cmd = serde_json::to_value(&DaemonCommand::FlushActiveSession).unwrap();
-    let evt = serde_json::to_value(&DaemonEvent::Ack).unwrap();
+fn serializes_read_requests_and_responses_to_explicit_tagged_wire_format() {
+    let range = TimeRange {
+        started_at: Utc.with_ymd_and_hms(2026, 4, 13, 0, 0, 0).unwrap(),
+        ended_at: Utc.with_ymd_and_hms(2026, 4, 13, 23, 59, 59).unwrap(),
+    };
 
-    assert_eq!(cmd, json!({ "type": "flush_active_session" }));
-    assert_eq!(evt, json!({ "type": "ack" }));
+    let request = serde_json::to_value(DaemonRequest::GetSessions(SessionsQuery {
+        range: range.clone(),
+        activity_filter: ActivityFilter::Website,
+        subject_query: Some("docs.rs".into()),
+    }))
+    .unwrap();
+
+    let response = serde_json::to_value(DaemonResponse::Overview(OverviewResponse {
+        range,
+        total_seconds: 600,
+        top_apps: vec![SummaryBucket {
+            kind: ActivityKind::App,
+            subject_id: "wezterm".into(),
+            title: "shell".into(),
+            total_seconds: 600,
+        }],
+        top_websites: vec![],
+        recent_sessions: vec![SessionRow {
+            kind: ActivityKind::App,
+            subject_id: "wezterm".into(),
+            title: "shell".into(),
+            started_at: Utc.with_ymd_and_hms(2026, 4, 13, 9, 0, 0).unwrap(),
+            ended_at: Utc.with_ymd_and_hms(2026, 4, 13, 9, 10, 0).unwrap(),
+            duration_seconds: 600,
+        }],
+    }))
+    .unwrap();
+
+    assert_eq!(
+        request,
+        json!({
+            "type": "get_sessions",
+            "range": {
+                "started_at": "2026-04-13T00:00:00Z",
+                "ended_at": "2026-04-13T23:59:59Z"
+            },
+            "activity_filter": "website",
+            "subject_query": "docs.rs"
+        })
+    );
+
+    assert_eq!(
+        response,
+        json!({
+            "type": "overview",
+            "range": {
+                "started_at": "2026-04-13T00:00:00Z",
+                "ended_at": "2026-04-13T23:59:59Z"
+            },
+            "total_seconds": 600,
+            "top_apps": [{
+                "kind": "App",
+                "subject_id": "wezterm",
+                "title": "shell",
+                "total_seconds": 600
+            }],
+            "top_websites": [],
+            "recent_sessions": [{
+                "kind": "App",
+                "subject_id": "wezterm",
+                "title": "shell",
+                "started_at": "2026-04-13T09:00:00Z",
+                "ended_at": "2026-04-13T09:10:00Z",
+                "duration_seconds": 600
+            }]
+        })
+    );
 }
 
 #[test]
-fn roundtrips_command_and_event_through_json() {
+fn keeps_existing_operational_command_and_event_roundtrip() {
     let cmd_json = serde_json::to_string(&DaemonCommand::FlushActiveSession).unwrap();
     let evt_json = serde_json::to_string(&DaemonEvent::Ack).unwrap();
 

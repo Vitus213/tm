@@ -25,6 +25,7 @@ pub enum RepositoryError {
 
 pub type Result<T> = std::result::Result<T, RepositoryError>;
 
+#[derive(Clone)]
 pub struct SqliteRepository {
     pool: SqlitePool,
 }

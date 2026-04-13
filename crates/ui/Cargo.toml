@@ -1,11 +1,15 @@
 [package]
-name = "tm-ipc"
+name = "tm-ui"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 
 [dependencies]
 chrono.workspace = true
-serde.workspace = true
+eframe = "0.31"
+egui_plot = "0.31"
 serde_json.workspace = true
+tm-ipc = { path = "../ipc" }
+
+[dev-dependencies]
 tm-core = { path = "../core" }
