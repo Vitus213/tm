@@ -1,0 +1,42 @@
+{
+  "skill_name": "tm-runtime-verifier",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "请对 tm 做一整套运行时验证。先跑构建和测试，再做 seeded 的 Overview 检查，然后告诉我当前环境下 Data、Charts、live sampling 哪些能做、哪些被阻塞。",
+      "expected_output": "运行 tm-runtime-verifier 的当前稳定流程，至少产出 seeded Overview 的截图与 JSON 报告，并对其他未自动化部分诚实返回 PASS/FAIL/BLOCKED。",
+      "files": [],
+      "expectations": [
+        "在声称结果前先运行 tm-ui 测试和构建命令",
+        "执行 seeded Overview 验证",
+        "读取截图并把显示文本和 IPC 数据对照",
+        "对 Data 或 Charts 未自动化部分明确返回 BLOCKED 而不是假装通过",
+        "返回 artifact 路径以及 PASS/FAIL/BLOCKED 结论"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "这个 duration-format 修复我还不放心。请跑 tm 的 seeded Overview 回归验证，至少包含一个不到一分钟的样本和一个超过一小时的样本，然后告诉我截图里显示的字符串是不是对的。",
+      "expected_output": "运行 seeded Overview 验证，覆盖 0 min 和 Hh Mm 两种时长显示，并说明截图文本是否和 IPC payload 一致。",
+      "files": [],
+      "expectations": [
+        "包含一个应显示为 0 min 的 sub-minute 样本",
+        "包含一个应显示为 Hh Mm 的 hour-plus 样本",
+        "读取截图并把文本字符串和 IPC 数据对照",
+        "清楚返回 seeded Overview 验证结论"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "先别管 Data 和 Charts。请验证 tm 的 live daemon/socket 链路是不是起得来，至少确认它真的能启动、出 socket、并且 ping 得通。如果 live sampling 还没完全自动化，也请直说。",
+      "expected_output": "运行 live daemon/socket 检查，至少证明 daemon 可启动且 socket/ping 正常；若真实焦点观察尚未脚本化，明确返回 BLOCKED。",
+      "files": [],
+      "expectations": [
+        "执行 live daemon/socket 脚本而不是只口头说明",
+        "报告 daemon 启动结果和 socket ping 结果",
+        "如果真实 focus sampling 尚未自动化，明确标记 BLOCKED",
+        "返回 live 检查的 JSON 报告路径"
+      ]
+    }
+  ]
+}

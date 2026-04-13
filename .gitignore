@@ -4,5 +4,10 @@
 *.db-wal
 *.sock
 .worktrees/
-.claude/
+.claude/*
+!.claude/skills/
+.claude/skills/*
+!.claude/skills/tm-runtime-verifier/
+!.claude/skills/tm-runtime-verifier/**
+.claude/skills/tm-runtime-verifier/**/__pycache__/
 .superpowers/
