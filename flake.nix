@@ -15,16 +15,16 @@
         runtimeLibs = with pkgs; [
           alsa-lib
           libGL
+          libx11
+          libxcursor
+          libxi
+          libxinerama
           libxkbcommon
+          libxrandr
           sqlite
           udev
           vulkan-loader
           wayland
-          xorg.libX11
-          xorg.libXcursor
-          xorg.libXi
-          xorg.libXinerama
-          xorg.libXrandr
         ];
       in
       {
