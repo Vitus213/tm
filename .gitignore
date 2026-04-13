@@ -3,3 +3,6 @@
 *.db-shm
 *.db-wal
 *.sock
+.worktrees/
+.claude/
+.superpowers/
