@@ -88,7 +88,7 @@ impl eframe::App for TmApp {
                             self.request_current_page();
                         }
                     }
-                    ui.add_space(ui.available_height() - 52.0);
+                    ui.add_space((ui.available_height() - 52.0).max(0.0));
                     if components::nav_button::nav_button(
                         ui,
                         "⚙️",
