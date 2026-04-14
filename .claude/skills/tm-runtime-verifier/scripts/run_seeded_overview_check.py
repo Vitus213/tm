@@ -4,6 +4,7 @@ import os
 import shutil
 import subprocess
 import tempfile
+from datetime import datetime, timezone
 from pathlib import Path
 
 from common import (
@@ -57,6 +58,34 @@ def build_report(dry_run: bool) -> dict:
     }
 
 
+def seeded_overview_fixture(now: datetime) -> dict:
+    day = now.astimezone(timezone.utc).date().isoformat()
+    return {
+        "range": {
+            "started_at": f"{day}T00:00:00Z",
+            "ended_at": f"{day}T23:59:59Z",
+        },
+        "rows": [
+            (
+                "app",
+                "tiny-app",
+                "Short sample",
+                f"{day}T09:00:00Z",
+                f"{day}T09:00:45Z",
+                45,
+            ),
+            (
+                "app",
+                "long-app",
+                "Long sample",
+                f"{day}T10:00:00Z",
+                f"{day}T11:07:00Z",
+                4020,
+            ),
+        ],
+    }
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--report", required=True)
@@ -72,8 +101,14 @@ def main() -> int:
         return 0
 
     repo = repo_root()
+    fixture = seeded_overview_fixture(datetime.now(timezone.utc))
     subprocess.run(["cargo", "test", "-p", "tm-ui"], cwd=repo, check=True, text=True)
-    subprocess.run(["cargo", "build", "-p", "tm-ui", "-p", "tm-daemon"], cwd=repo, check=True, text=True)
+    subprocess.run(
+        ["cargo", "build", "-p", "tm-ui", "-p", "tm-daemon"],
+        cwd=repo,
+        check=True,
+        text=True,
+    )
     report["checks"]["test_build"] = "pass"
 
     work_root = Path(tempfile.mkdtemp(prefix="tmvr-overview-", dir="/tmp"))
@@ -92,10 +127,7 @@ def main() -> int:
     db_path = data_home / "tm" / "tm.db"
     seed_sessions(
         db_path,
-        [
-            ("app", "tiny-app", "Short sample", "2026-04-13T09:00:00Z", "2026-04-13T09:00:45Z", 45),
-            ("app", "long-app", "Long sample", "2026-04-13T10:00:00Z", "2026-04-13T11:07:00Z", 4020),
-        ],
+        fixture["rows"],
     )
 
     daemon = start_daemon(repo, env, daemon_log)
@@ -116,10 +148,7 @@ def main() -> int:
             sock,
             {
                 "type": "get_overview",
-                "range": {
-                    "started_at": "2026-04-13T00:00:00Z",
-                    "ended_at": "2026-04-13T23:59:59Z",
-                },
+                "range": fixture["range"],
             },
         )
         report["artifacts"]["ipc_payload"] = overview
@@ -137,8 +166,21 @@ def main() -> int:
     finally:
         try:
             if report.get("environment", {}).get("window_id"):
-                subprocess.run(["niri", "msg", "action", "focus-window", "--id", str(report["environment"]["window_id"])], check=False, text=True)
-                subprocess.run(["niri", "msg", "action", "close-window"], check=False, text=True)
+                subprocess.run(
+                    [
+                        "niri",
+                        "msg",
+                        "action",
+                        "focus-window",
+                        "--id",
+                        str(report["environment"]["window_id"]),
+                    ],
+                    check=False,
+                    text=True,
+                )
+                subprocess.run(
+                    ["niri", "msg", "action", "close-window"], check=False, text=True
+                )
         finally:
             stop_process(daemon)
 
