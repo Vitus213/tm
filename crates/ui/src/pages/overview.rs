@@ -101,7 +101,7 @@ pub fn render(
             |ui| {
                 let frame = egui::Frame::new()
                     .corner_radius(10.0)
-                    .fill(ui.visuals().panel_fill)
+                    .fill(ui.visuals().selection.bg_fill.gamma_multiply(0.08))
                     .inner_margin(10.0);
                 let inner = frame.show(ui, |ui| {
                     badge_header(
