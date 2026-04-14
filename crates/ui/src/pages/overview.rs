@@ -78,7 +78,7 @@ pub fn render(
                             &row.title
                         };
                         let duration = format_duration_minutes_style(row.total_seconds);
-                        app_list_item(ui, 20.0, name, &duration);
+                        app_list_row(ui, 20.0, name, &duration);
                     }
                 });
                 let rect = inner.response.rect;
@@ -119,7 +119,7 @@ pub fn render(
                             &row.title
                         };
                         let duration = format_duration_minutes_style(row.total_seconds);
-                        app_list_item(ui, 18.0, name, &duration);
+                        app_list_row(ui, 18.0, name, &duration);
                     }
                 });
                 let rect = inner.response.rect;
@@ -193,7 +193,7 @@ fn badge_header(
     });
 }
 
-fn app_list_item(ui: &mut egui::Ui, icon_size: f32, name: &str, duration: &str) {
+fn app_list_row(ui: &mut egui::Ui, icon_size: f32, name: &str, duration: &str) {
     ui.horizontal(|ui| {
         let (rect, _response) =
             ui.allocate_exact_size(egui::vec2(icon_size, icon_size), egui::Sense::hover());
@@ -207,7 +207,7 @@ fn app_list_item(ui: &mut egui::Ui, icon_size: f32, name: &str, duration: &str) 
 }
 
 fn app_card(ui: &mut egui::Ui, name: &str, duration: &str) {
-    let card_width = 80.0;
+    let card_width = 100.0;
     ui.allocate_ui_with_layout(
         egui::vec2(card_width, 90.0),
         egui::Layout::top_down(egui::Align::Center),

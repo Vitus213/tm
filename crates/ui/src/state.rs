@@ -144,7 +144,11 @@ impl AppState {
         self.connection = ConnectionState::Connected;
         match response {
             DaemonResponse::Overview(payload) => {
-                self.overview = if payload.recent_sessions.is_empty() {
+                let is_empty = payload.top_apps.is_empty()
+                    && payload.top_websites.is_empty()
+                    && payload.more_apps.is_empty()
+                    && payload.more_websites.is_empty();
+                self.overview = if is_empty {
                     LoadState::Empty
                 } else {
                     LoadState::Loaded(payload)
