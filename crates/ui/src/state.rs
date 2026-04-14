@@ -109,6 +109,7 @@ pub struct AppState {
     pub overview: LoadState<OverviewResponse>,
     pub charts: LoadState<ChartsResponse>,
     pub data: LoadState<SessionsResponse>,
+    pub overview_more_type: bool,
 }
 
 impl AppState {
@@ -121,6 +122,7 @@ impl AppState {
             overview: LoadState::Loading,
             charts: LoadState::Loading,
             data: LoadState::Loading,
+            overview_more_type: false,
         }
     }
 

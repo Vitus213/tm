@@ -112,7 +112,28 @@ impl eframe::App for TmApp {
                             LoadState::Loading => {
                                 ui.label("Loading overview...");
                             }
-                            LoadState::Loaded(payload) => overview::render(ui, payload),
+                            LoadState::Loaded(payload) => {
+                                if let Some(event) = overview::render(
+                                    ui,
+                                    self.state.time_tab,
+                                    self.state.overview_more_type,
+                                    payload,
+                                ) {
+                                    match event {
+                                        overview::OverviewEvent::TimeTabChanged(tab) => {
+                                            self.state.time_tab = tab;
+                                            self.state.range = tab.to_range(Utc::now());
+                                            self.state.overview = LoadState::Loading;
+                                            self.state.charts = LoadState::Loading;
+                                            self.state.data = LoadState::Loading;
+                                            self.request_current_page();
+                                        }
+                                        overview::OverviewEvent::MoreTypeChanged(v) => {
+                                            self.state.overview_more_type = v;
+                                        }
+                                    }
+                                }
+                            }
                             LoadState::Empty => {
                                 ui.label("No overview data yet.");
                             }
