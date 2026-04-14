@@ -221,11 +221,19 @@ mod tests {
         let mut rows = Vec::new();
         // Create 25 app sessions with descending durations so they have a deterministic order
         for i in 0..25 {
-            rows.push(make_row(ActivityKind::App, &format!("app-{i:02}"), 1000 - i as i64));
+            rows.push(make_row(
+                ActivityKind::App,
+                &format!("app-{i:02}"),
+                1000 - i as i64,
+            ));
         }
         // Add some website sessions to ensure filtering by kind works
         for i in 0..10 {
-            rows.push(make_row(ActivityKind::Website, &format!("site-{i:02}"), 500 - i as i64));
+            rows.push(make_row(
+                ActivityKind::Website,
+                &format!("site-{i:02}"),
+                500 - i as i64,
+            ));
         }
 
         let apps_5 = top_buckets(&rows, ActivityKind::App, 5);

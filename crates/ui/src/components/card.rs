@@ -1,5 +1,6 @@
 use eframe::egui;
 
+/// Renders content inside a rounded card with a faint background and border.
 pub fn card<R>(
     ui: &mut egui::Ui,
     content: impl FnOnce(&mut egui::Ui) -> R,

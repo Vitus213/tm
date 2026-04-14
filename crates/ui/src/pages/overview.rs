@@ -5,7 +5,10 @@ use crate::format::format_duration_minutes_style;
 
 pub fn render(ui: &mut egui::Ui, payload: &OverviewResponse) {
     ui.heading("Overview");
-    ui.label(format!("Tracked: {}", format_duration_minutes_style(payload.total_seconds)));
+    ui.label(format!(
+        "Tracked: {}",
+        format_duration_minutes_style(payload.total_seconds)
+    ));
 
     ui.separator();
     ui.label("Top apps");
