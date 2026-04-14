@@ -10,7 +10,8 @@ pub fn nav_button(ui: &mut egui::Ui, icon: &str, label: &str, selected: bool) ->
     let gap = 4.0;
 
     let content_height = icon_size + gap + label_size;
-    let desired_size = egui::vec2(80.0, content_height);
+    let button_height = content_height + 16.0; // 8px top + 8px bottom padding
+    let desired_size = egui::vec2(80.0, button_height);
     let (rect, response) = ui.allocate_exact_size(desired_size, egui::Sense::click());
 
     if ui.is_rect_visible(rect) {
@@ -37,13 +38,7 @@ pub fn nav_button(ui: &mut egui::Ui, icon: &str, label: &str, selected: bool) ->
         }
 
         // Use egui's layout system for text positioning
-        let mut child_ui = ui.new_child(
-            egui::UiBuilder::new()
-                .max_rect(rect)
-                .layout(egui::Layout::top_down(egui::Align::Center)),
-        );
-        let top_padding = (rect.height() - content_height) / 2.0;
-        child_ui.add_space(top_padding);
+        let mut child_ui = ui.new_child(egui::UiBuilder::new().max_rect(rect));
         child_ui.vertical_centered(|ui| {
             ui.label(egui::RichText::new(icon).size(icon_size).color(text_color));
             ui.add_space(gap);
