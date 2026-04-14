@@ -32,13 +32,21 @@ where
             ActivityFilter::All,
             None,
         );
+
+        // Compute once and derive truncated lists to avoid redundant sorting
+        let all_apps = top_buckets(&sessions, ActivityKind::App, 20);
+        let all_websites = top_buckets(&sessions, ActivityKind::Website, 20);
+
+        let top_apps = all_apps.iter().take(5).cloned().collect();
+        let top_websites = all_websites.iter().take(5).cloned().collect();
+
         Ok(OverviewResponse {
             range: query.range,
             total_seconds: sessions.iter().map(|row| row.duration_seconds).sum(),
-            top_apps: top_buckets(&sessions, ActivityKind::App, 5),
-            top_websites: top_buckets(&sessions, ActivityKind::Website, 5),
-            more_apps: top_buckets(&sessions, ActivityKind::App, 20),
-            more_websites: top_buckets(&sessions, ActivityKind::Website, 20),
+            top_apps,
+            top_websites,
+            more_apps: all_apps,
+            more_websites: all_websites,
             recent_sessions: recent_rows(&sessions),
         })
     }
@@ -190,4 +198,52 @@ fn hourly_totals(rows: &[SessionRow]) -> Vec<ChartBucket> {
             total_seconds,
         })
         .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn make_row(kind: ActivityKind, subject_id: &str, duration_seconds: i64) -> SessionRow {
+        let started_at = Utc::now();
+        SessionRow {
+            kind,
+            subject_id: subject_id.to_string(),
+            title: format!("Title {subject_id}"),
+            started_at,
+            ended_at: started_at + chrono::Duration::seconds(duration_seconds),
+            duration_seconds,
+        }
+    }
+
+    #[test]
+    fn top_buckets_respects_limit() {
+        let mut rows = Vec::new();
+        // Create 25 app sessions with descending durations so they have a deterministic order
+        for i in 0..25 {
+            rows.push(make_row(ActivityKind::App, &format!("app-{i:02}"), 1000 - i as i64));
+        }
+        // Add some website sessions to ensure filtering by kind works
+        for i in 0..10 {
+            rows.push(make_row(ActivityKind::Website, &format!("site-{i:02}"), 500 - i as i64));
+        }
+
+        let apps_5 = top_buckets(&rows, ActivityKind::App, 5);
+        assert_eq!(apps_5.len(), 5);
+        assert_eq!(apps_5[0].subject_id, "app-00");
+        assert_eq!(apps_5[4].subject_id, "app-04");
+
+        let apps_20 = top_buckets(&rows, ActivityKind::App, 20);
+        assert_eq!(apps_20.len(), 20);
+        assert_eq!(apps_20[0].subject_id, "app-00");
+        assert_eq!(apps_20[19].subject_id, "app-19");
+
+        let sites_5 = top_buckets(&rows, ActivityKind::Website, 5);
+        assert_eq!(sites_5.len(), 5);
+        assert_eq!(sites_5[0].subject_id, "site-00");
+        assert_eq!(sites_5[4].subject_id, "site-04");
+
+        let sites_20 = top_buckets(&rows, ActivityKind::Website, 20);
+        assert_eq!(sites_20.len(), 10); // only 10 websites exist
+    }
 }
