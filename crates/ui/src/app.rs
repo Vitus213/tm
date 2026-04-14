@@ -114,46 +114,46 @@ impl eframe::App for TmApp {
             ui.separator();
 
             match self.state.page {
-            Page::Overview => match &self.state.overview {
-                LoadState::Loading => {
-                    ui.label("Loading overview...");
-                }
-                LoadState::Loaded(payload) => overview::render(ui, payload),
-                LoadState::Empty => {
-                    ui.label("No overview data yet.");
-                }
-                LoadState::Error(message) => {
-                    ui.label(message);
-                }
-            },
-            Page::Charts => match &self.state.charts {
-                LoadState::Loading => {
-                    ui.label("Loading charts...");
-                }
-                LoadState::Loaded(payload) => charts::render(ui, payload),
-                LoadState::Empty => {
-                    ui.label("No chart data yet.");
-                }
-                LoadState::Error(message) => {
-                    ui.label(message);
-                }
-            },
-            Page::Data => match &self.state.data {
-                LoadState::Loading => {
-                    ui.label("Loading sessions...");
-                }
-                LoadState::Loaded(payload) => data::render(ui, payload),
-                LoadState::Empty => {
-                    ui.label("No sessions yet.");
-                }
-                LoadState::Error(message) => {
-                    ui.label(message);
-                }
-            },
-            Page::Apps => placeholder::render(ui, "Apps"),
-            Page::Websites => placeholder::render(ui, "Websites"),
-            Page::Categories => placeholder::render(ui, "Categories"),
-            Page::Settings => placeholder::render(ui, "Settings"),
+                Page::Overview => match &self.state.overview {
+                    LoadState::Loading => {
+                        ui.label("Loading overview...");
+                    }
+                    LoadState::Loaded(payload) => overview::render(ui, payload),
+                    LoadState::Empty => {
+                        ui.label("No overview data yet.");
+                    }
+                    LoadState::Error(message) => {
+                        ui.label(message);
+                    }
+                },
+                Page::Charts => match &self.state.charts {
+                    LoadState::Loading => {
+                        ui.label("Loading charts...");
+                    }
+                    LoadState::Loaded(payload) => charts::render(ui, payload),
+                    LoadState::Empty => {
+                        ui.label("No chart data yet.");
+                    }
+                    LoadState::Error(message) => {
+                        ui.label(message);
+                    }
+                },
+                Page::Data => match &self.state.data {
+                    LoadState::Loading => {
+                        ui.label("Loading sessions...");
+                    }
+                    LoadState::Loaded(payload) => data::render(ui, payload),
+                    LoadState::Empty => {
+                        ui.label("No sessions yet.");
+                    }
+                    LoadState::Error(message) => {
+                        ui.label(message);
+                    }
+                },
+                Page::Apps => placeholder::render(ui, "Apps"),
+                Page::Websites => placeholder::render(ui, "Websites"),
+                Page::Categories => placeholder::render(ui, "Categories"),
+                Page::Settings => placeholder::render(ui, "Settings"),
             }
         });
 

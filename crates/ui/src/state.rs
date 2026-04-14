@@ -167,3 +167,41 @@ impl AppState {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use chrono::TimeZone;
+
+    fn fixed_now() -> DateTime<Utc> {
+        Utc.with_ymd_and_hms(2026, 4, 15, 12, 0, 0).unwrap()
+    }
+
+    #[test]
+    fn time_tab_today_range() {
+        let range = TimeTab::Today.to_range(fixed_now());
+        assert_eq!(range.started_at.timestamp(), 1776211200); // 2026-04-15 00:00:00 UTC
+        assert_eq!(range.ended_at.timestamp(), 1776297599); // 2026-04-15 23:59:59 UTC
+    }
+
+    #[test]
+    fn time_tab_week_range() {
+        let range = TimeTab::Week.to_range(fixed_now());
+        assert_eq!(range.started_at.timestamp(), 1776038400); // 2026-04-13 (Mon) 00:00:00 UTC
+        assert_eq!(range.ended_at.timestamp(), 1776643199); // 2026-04-19 (Sun) 23:59:59 UTC
+    }
+
+    #[test]
+    fn time_tab_month_range() {
+        let range = TimeTab::Month.to_range(fixed_now());
+        assert_eq!(range.started_at.timestamp(), 1775001600); // 2026-04-01 00:00:00 UTC
+        assert_eq!(range.ended_at.timestamp(), 1777593599); // 2026-04-30 23:59:59 UTC
+    }
+
+    #[test]
+    fn time_tab_year_range() {
+        let range = TimeTab::Year.to_range(fixed_now());
+        assert_eq!(range.started_at.timestamp(), 1767225600); // 2026-01-01 00:00:00 UTC
+        assert_eq!(range.ended_at.timestamp(), 1798761599); // 2026-12-31 23:59:59 UTC
+    }
+}
