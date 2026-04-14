@@ -1,14 +1,14 @@
 use std::sync::mpsc::{self, Receiver};
 use std::thread;
 
-use chrono::{TimeZone, Utc};
+use chrono::Utc;
 use eframe::egui;
 use tm_ipc::{ActivityFilter, ChartsQuery, DaemonRequest, OverviewQuery, SessionsQuery};
 
 use crate::{
     client::IpcClient,
     pages::{charts, data, overview, placeholder},
-    state::{AppState, ConnectionState, LoadState, Page},
+    state::{AppState, ConnectionState, LoadState, Page, TimeTab},
 };
 
 pub struct TmApp {
@@ -19,14 +19,12 @@ pub struct TmApp {
 
 impl Default for TmApp {
     fn default() -> Self {
-        let range = tm_ipc::TimeRange {
-            started_at: Utc.with_ymd_and_hms(2026, 4, 13, 0, 0, 0).unwrap(),
-            ended_at: Utc.with_ymd_and_hms(2026, 4, 13, 23, 59, 59).unwrap(),
-        };
+        let time_tab = TimeTab::Today;
+        let range = time_tab.to_range(Utc::now());
         Self {
             client: IpcClient::from_default_socket()
                 .unwrap_or_else(|_| IpcClient::new(std::path::PathBuf::from("/tmp/tm.sock"))),
-            state: AppState::new(range),
+            state: AppState::new(range, time_tab),
             pending: None,
         }
     }
@@ -91,7 +89,31 @@ impl eframe::App for TmApp {
             }
         });
 
-        egui::CentralPanel::default().show(ctx, |ui| match self.state.page {
+        egui::CentralPanel::default().show(ctx, |ui| {
+            ui.horizontal(|ui| {
+                for (label, tab) in [
+                    ("Today", TimeTab::Today),
+                    ("Week", TimeTab::Week),
+                    ("Month", TimeTab::Month),
+                    ("Year", TimeTab::Year),
+                ] {
+                    if ui
+                        .selectable_label(self.state.time_tab == tab, label)
+                        .clicked()
+                        && self.state.time_tab != tab
+                    {
+                        self.state.time_tab = tab;
+                        self.state.range = tab.to_range(Utc::now());
+                        self.state.overview = LoadState::Loading;
+                        self.state.charts = LoadState::Loading;
+                        self.state.data = LoadState::Loading;
+                        self.request_current_page();
+                    }
+                }
+            });
+            ui.separator();
+
+            match self.state.page {
             Page::Overview => match &self.state.overview {
                 LoadState::Loading => {
                     ui.label("Loading overview...");
@@ -132,6 +154,7 @@ impl eframe::App for TmApp {
             Page::Websites => placeholder::render(ui, "Websites"),
             Page::Categories => placeholder::render(ui, "Categories"),
             Page::Settings => placeholder::render(ui, "Settings"),
+            }
         });
 
         if self.pending.is_none() && matches!(self.state.connection, ConnectionState::Retrying) {

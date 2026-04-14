@@ -1,3 +1,4 @@
+use chrono::{DateTime, Datelike, Duration, NaiveDate, NaiveTime, Utc};
 use tm_ipc::{ChartsResponse, DaemonResponse, OverviewResponse, SessionsResponse, TimeRange};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -9,6 +10,80 @@ pub enum Page {
     Websites,
     Categories,
     Settings,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TimeTab {
+    Today,
+    Week,
+    Month,
+    Year,
+}
+
+impl TimeTab {
+    pub fn to_range(self, now: DateTime<Utc>) -> TimeRange {
+        let date = now.date_naive();
+        let start_time = NaiveTime::from_hms_opt(0, 0, 0).unwrap();
+        let end_time = NaiveTime::from_hms_opt(23, 59, 59).unwrap();
+
+        match self {
+            TimeTab::Today => {
+                let started_at = date.and_time(start_time).and_local_timezone(Utc).unwrap();
+                let ended_at = date.and_time(end_time).and_local_timezone(Utc).unwrap();
+                TimeRange {
+                    started_at,
+                    ended_at,
+                }
+            }
+            TimeTab::Week => {
+                let weekday = date.weekday().num_days_from_monday();
+                let monday = date - Duration::days(weekday as i64);
+                let sunday = monday + Duration::days(6);
+                let started_at = monday.and_time(start_time).and_local_timezone(Utc).unwrap();
+                let ended_at = sunday.and_time(end_time).and_local_timezone(Utc).unwrap();
+                TimeRange {
+                    started_at,
+                    ended_at,
+                }
+            }
+            TimeTab::Month => {
+                let first_day = NaiveDate::from_ymd_opt(date.year(), date.month(), 1).unwrap();
+                let last_day = if date.month() == 12 {
+                    NaiveDate::from_ymd_opt(date.year() + 1, 1, 1)
+                        .unwrap()
+                        .pred_opt()
+                        .unwrap()
+                } else {
+                    NaiveDate::from_ymd_opt(date.year(), date.month() + 1, 1)
+                        .unwrap()
+                        .pred_opt()
+                        .unwrap()
+                };
+                let started_at = first_day
+                    .and_time(start_time)
+                    .and_local_timezone(Utc)
+                    .unwrap();
+                let ended_at = last_day.and_time(end_time).and_local_timezone(Utc).unwrap();
+                TimeRange {
+                    started_at,
+                    ended_at,
+                }
+            }
+            TimeTab::Year => {
+                let first_day = NaiveDate::from_ymd_opt(date.year(), 1, 1).unwrap();
+                let last_day = NaiveDate::from_ymd_opt(date.year(), 12, 31).unwrap();
+                let started_at = first_day
+                    .and_time(start_time)
+                    .and_local_timezone(Utc)
+                    .unwrap();
+                let ended_at = last_day.and_time(end_time).and_local_timezone(Utc).unwrap();
+                TimeRange {
+                    started_at,
+                    ended_at,
+                }
+            }
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -28,6 +103,7 @@ pub enum LoadState<T> {
 
 pub struct AppState {
     pub page: Page,
+    pub time_tab: TimeTab,
     pub range: TimeRange,
     pub connection: ConnectionState,
     pub overview: LoadState<OverviewResponse>,
@@ -36,9 +112,10 @@ pub struct AppState {
 }
 
 impl AppState {
-    pub fn new(range: TimeRange) -> Self {
+    pub fn new(range: TimeRange, time_tab: TimeTab) -> Self {
         Self {
             page: Page::Overview,
+            time_tab,
             range,
             connection: ConnectionState::Retrying,
             overview: LoadState::Loading,
