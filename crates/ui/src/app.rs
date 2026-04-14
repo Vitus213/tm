@@ -83,7 +83,12 @@ impl eframe::App for TmApp {
                         ("🌐", "Websites", Page::Websites),
                         ("📁", "Categories", Page::Categories),
                     ] {
-                        if components::nav_button::nav_button(ui, icon, label, self.state.page == page) {
+                        if components::nav_button::nav_button(
+                            ui,
+                            icon,
+                            label,
+                            self.state.page == page,
+                        ) {
                             self.state.select_page(page);
                             self.request_current_page();
                         }
@@ -103,75 +108,71 @@ impl eframe::App for TmApp {
 
         let mut frame = egui::Frame::central_panel(&ctx.style());
         frame.inner_margin.left = 10;
-        egui::CentralPanel::default()
-            .frame(frame)
-            .show(ctx, |ui| {
-                components::card::card(ui, |ui| {
-                    match self.state.page {
-                        Page::Overview => match &self.state.overview {
-                            LoadState::Loading => {
-                                ui.label("Loading overview...");
-                            }
-                            LoadState::Loaded(payload) => {
-                                if let Some(event) = overview::render(
-                                    ui,
-                                    self.state.time_tab,
-                                    self.state.overview_more_type,
-                                    payload,
-                                ) {
-                                    match event {
-                                        overview::OverviewEvent::TimeTabChanged(tab) => {
-                                            self.state.time_tab = tab;
-                                            self.state.range = tab.to_range(Utc::now());
-                                            self.state.overview = LoadState::Loading;
-                                            self.state.charts = LoadState::Loading;
-                                            self.state.data = LoadState::Loading;
-                                            self.request_current_page();
-                                        }
-                                        overview::OverviewEvent::MoreTypeChanged(v) => {
-                                            self.state.overview_more_type = v;
-                                        }
-                                    }
+        egui::CentralPanel::default().frame(frame).show(ctx, |ui| {
+            components::card::card(ui, |ui| match self.state.page {
+                Page::Overview => match &self.state.overview {
+                    LoadState::Loading => {
+                        ui.label("Loading overview...");
+                    }
+                    LoadState::Loaded(payload) => {
+                        if let Some(event) = overview::render(
+                            ui,
+                            self.state.time_tab,
+                            self.state.overview_more_type,
+                            payload,
+                        ) {
+                            match event {
+                                overview::OverviewEvent::TimeTabChanged(tab) => {
+                                    self.state.time_tab = tab;
+                                    self.state.range = tab.to_range(Utc::now());
+                                    self.state.overview = LoadState::Loading;
+                                    self.state.charts = LoadState::Loading;
+                                    self.state.data = LoadState::Loading;
+                                    self.request_current_page();
+                                }
+                                overview::OverviewEvent::MoreTypeChanged(v) => {
+                                    self.state.overview_more_type = v;
                                 }
                             }
-                            LoadState::Empty => {
-                                ui.label("No overview data yet.");
-                            }
-                            LoadState::Error(message) => {
-                                ui.label(message);
-                            }
-                        },
-                        Page::Charts => match &self.state.charts {
-                            LoadState::Loading => {
-                                ui.label("Loading charts...");
-                            }
-                            LoadState::Loaded(payload) => charts::render(ui, payload),
-                            LoadState::Empty => {
-                                ui.label("No chart data yet.");
-                            }
-                            LoadState::Error(message) => {
-                                ui.label(message);
-                            }
-                        },
-                        Page::Data => match &self.state.data {
-                            LoadState::Loading => {
-                                ui.label("Loading sessions...");
-                            }
-                            LoadState::Loaded(payload) => data::render(ui, payload),
-                            LoadState::Empty => {
-                                ui.label("No sessions yet.");
-                            }
-                            LoadState::Error(message) => {
-                                ui.label(message);
-                            }
-                        },
-                        Page::Apps => placeholder::render(ui, "Apps"),
-                        Page::Websites => placeholder::render(ui, "Websites"),
-                        Page::Categories => placeholder::render(ui, "Categories"),
-                        Page::Settings => placeholder::render(ui, "Settings"),
+                        }
                     }
-                });
+                    LoadState::Empty => {
+                        ui.label("No overview data yet.");
+                    }
+                    LoadState::Error(message) => {
+                        ui.label(message);
+                    }
+                },
+                Page::Charts => match &self.state.charts {
+                    LoadState::Loading => {
+                        ui.label("Loading charts...");
+                    }
+                    LoadState::Loaded(payload) => charts::render(ui, payload),
+                    LoadState::Empty => {
+                        ui.label("No chart data yet.");
+                    }
+                    LoadState::Error(message) => {
+                        ui.label(message);
+                    }
+                },
+                Page::Data => match &self.state.data {
+                    LoadState::Loading => {
+                        ui.label("Loading sessions...");
+                    }
+                    LoadState::Loaded(payload) => data::render(ui, payload),
+                    LoadState::Empty => {
+                        ui.label("No sessions yet.");
+                    }
+                    LoadState::Error(message) => {
+                        ui.label(message);
+                    }
+                },
+                Page::Apps => placeholder::render(ui, "Apps"),
+                Page::Websites => placeholder::render(ui, "Websites"),
+                Page::Categories => placeholder::render(ui, "Categories"),
+                Page::Settings => placeholder::render(ui, "Settings"),
             });
+        });
 
         if self.pending.is_none() && matches!(self.state.connection, ConnectionState::Retrying) {
             self.request_current_page();
