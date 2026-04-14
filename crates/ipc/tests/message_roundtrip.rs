@@ -30,6 +30,13 @@ fn serializes_read_requests_and_responses_to_explicit_tagged_wire_format() {
             total_seconds: 600,
         }],
         top_websites: vec![],
+        more_apps: vec![SummaryBucket {
+            kind: ActivityKind::App,
+            subject_id: "wezterm".into(),
+            title: "shell".into(),
+            total_seconds: 600,
+        }],
+        more_websites: vec![],
         recent_sessions: vec![SessionRow {
             kind: ActivityKind::App,
             subject_id: "wezterm".into(),
@@ -70,6 +77,13 @@ fn serializes_read_requests_and_responses_to_explicit_tagged_wire_format() {
                 "total_seconds": 600
             }],
             "top_websites": [],
+            "more_apps": [{
+                "kind": "App",
+                "subject_id": "wezterm",
+                "title": "shell",
+                "total_seconds": 600
+            }],
+            "more_websites": [],
             "recent_sessions": [{
                 "kind": "App",
                 "subject_id": "wezterm",

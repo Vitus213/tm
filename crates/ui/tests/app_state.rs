@@ -31,6 +31,13 @@ fn overview_response_populates_loaded_state() {
             total_seconds: 900,
         }],
         top_websites: vec![],
+        more_apps: vec![SummaryBucket {
+            kind: ActivityKind::App,
+            subject_id: "wezterm".into(),
+            title: "shell".into(),
+            total_seconds: 900,
+        }],
+        more_websites: vec![],
         recent_sessions: vec![SessionRow {
             kind: ActivityKind::App,
             subject_id: "wezterm".into(),

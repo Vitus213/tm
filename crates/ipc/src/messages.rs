@@ -69,6 +69,8 @@ pub struct OverviewResponse {
     pub total_seconds: i64,
     pub top_apps: Vec<SummaryBucket>,
     pub top_websites: Vec<SummaryBucket>,
+    pub more_apps: Vec<SummaryBucket>,
+    pub more_websites: Vec<SummaryBucket>,
     pub recent_sessions: Vec<SessionRow>,
 }
 

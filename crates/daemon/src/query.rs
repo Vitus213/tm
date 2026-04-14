@@ -35,8 +35,10 @@ where
         Ok(OverviewResponse {
             range: query.range,
             total_seconds: sessions.iter().map(|row| row.duration_seconds).sum(),
-            top_apps: top_buckets(&sessions, ActivityKind::App),
-            top_websites: top_buckets(&sessions, ActivityKind::Website),
+            top_apps: top_buckets(&sessions, ActivityKind::App, 5),
+            top_websites: top_buckets(&sessions, ActivityKind::Website, 5),
+            more_apps: top_buckets(&sessions, ActivityKind::App, 20),
+            more_websites: top_buckets(&sessions, ActivityKind::Website, 20),
             recent_sessions: recent_rows(&sessions),
         })
     }
@@ -68,8 +70,8 @@ where
         );
         Ok(ChartsResponse {
             range: query.range,
-            app_share: top_buckets(&sessions, ActivityKind::App),
-            website_share: top_buckets(&sessions, ActivityKind::Website),
+            app_share: top_buckets(&sessions, ActivityKind::App, 10),
+            website_share: top_buckets(&sessions, ActivityKind::Website, 10),
             daily_totals: daily_totals(&sessions),
             hourly_totals: hourly_totals(&sessions),
         })
@@ -125,7 +127,7 @@ fn row_for_range(session: ClosedSession, range: &TimeRange) -> Option<SessionRow
     })
 }
 
-fn top_buckets(rows: &[SessionRow], kind: ActivityKind) -> Vec<SummaryBucket> {
+fn top_buckets(rows: &[SessionRow], kind: ActivityKind, limit: usize) -> Vec<SummaryBucket> {
     let mut grouped: BTreeMap<String, SummaryBucket> = BTreeMap::new();
     for row in rows.iter().filter(|row| row.kind == kind) {
         let entry = grouped
@@ -142,7 +144,7 @@ fn top_buckets(rows: &[SessionRow], kind: ActivityKind) -> Vec<SummaryBucket> {
 
     let mut buckets = grouped.into_values().collect::<Vec<_>>();
     buckets.sort_by_key(|bucket| std::cmp::Reverse(bucket.total_seconds));
-    buckets.truncate(5);
+    buckets.truncate(limit);
     buckets
 }
 
