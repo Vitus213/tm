@@ -9,6 +9,13 @@ use tm_core::{ActivityKind, ClosedSession};
 
 use crate::schema::BOOTSTRAP_SQL;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Settings {
+    pub idle_threshold_seconds: i64,
+    pub website_tracking_enabled: bool,
+    pub autostart_enabled: bool,
+}
+
 #[derive(Debug, Error)]
 pub enum RepositoryError {
     #[error(transparent)]
@@ -86,6 +93,33 @@ impl SqliteRepository {
         .await?;
 
         rows.into_iter().map(session_from_row).collect()
+    }
+
+    pub async fn get_settings(&self) -> Result<Settings> {
+        let row = sqlx::query(
+            "SELECT idle_threshold_seconds, website_tracking_enabled, autostart_enabled FROM settings WHERE id = 1",
+        )
+        .fetch_one(&self.pool)
+        .await?;
+
+        Ok(Settings {
+            idle_threshold_seconds: row.get(0),
+            website_tracking_enabled: row.get::<i64, _>(1) != 0,
+            autostart_enabled: row.get::<i64, _>(2) != 0,
+        })
+    }
+
+    pub async fn save_settings(&self, settings: &Settings) -> Result<()> {
+        sqlx::query(
+            "UPDATE settings SET idle_threshold_seconds = ?, website_tracking_enabled = ?, autostart_enabled = ? WHERE id = 1",
+        )
+        .bind(settings.idle_threshold_seconds)
+        .bind(if settings.website_tracking_enabled { 1 } else { 0 })
+        .bind(if settings.autostart_enabled { 1 } else { 0 })
+        .execute(&self.pool)
+        .await?;
+
+        Ok(())
     }
 }
 

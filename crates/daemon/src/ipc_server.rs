@@ -65,6 +65,11 @@ where
         DaemonRequest::GetCharts(query) => {
             DaemonResponse::Charts(query_service.get_charts(query).await?)
         }
+        DaemonRequest::GetSettings => DaemonResponse::Settings(query_service.get_settings().await?),
+        DaemonRequest::UpdateSettings(settings) => {
+            query_service.update_settings(settings).await?;
+            DaemonResponse::Settings(query_service.get_settings().await?)
+        }
     };
 
     writer

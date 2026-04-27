@@ -7,26 +7,46 @@ use tm_ipc::{ActivityFilter, ChartsQuery, DaemonRequest, OverviewQuery, Sessions
 
 use crate::{
     client::IpcClient,
-    components,
-    pages::{charts, data, overview, placeholder},
-    state::{AppState, ConnectionState, LoadState, Page, TimeTab},
+    pages::{apps, charts, data, overview, placeholder, settings, websites},
+    state::{AppState, ConnectionState, LoadState, Page},
 };
 
 pub struct TmApp {
     client: IpcClient,
     state: AppState,
     pending: Option<Receiver<Result<tm_ipc::DaemonResponse, String>>>,
+    settings_dirty: bool,
 }
 
 impl Default for TmApp {
     fn default() -> Self {
-        let time_tab = TimeTab::Today;
-        let range = time_tab.to_range(Utc::now());
+        let range = tm_ipc::TimeRange {
+            started_at: Utc.with_ymd_and_hms(2026, 4, 13, 0, 0, 0).unwrap(),
+            ended_at: Utc.with_ymd_and_hms(2026, 4, 13, 23, 59, 59).unwrap(),
+        };
+        let mut state = AppState::new(range);
+
+        // Allow overriding the startup page via env var for automated screenshot testing
+        if let Ok(page_env) = std::env::var("TM_UI_PAGE") {
+            let page = match page_env.as_str() {
+                "Overview" => Page::Overview,
+                "Charts" => Page::Charts,
+                "Data" => Page::Data,
+                "Apps" => Page::Apps,
+                "Websites" => Page::Websites,
+                "Categories" => Page::Categories,
+                "Settings" => Page::Settings,
+                _ => Page::Overview,
+            };
+            state.select_page(page);
+        }
+
         Self {
             client: IpcClient::from_default_socket()
                 .unwrap_or_else(|_| IpcClient::new(std::path::PathBuf::from("/tmp/tm.sock"))),
-            state: AppState::new(range, time_tab),
+            state,
             pending: None,
+            settings_dirty: false,
         }
     }
 }
@@ -45,6 +65,17 @@ impl TmApp {
                 activity_filter: ActivityFilter::All,
                 subject_query: None,
             }),
+            Page::Apps => DaemonRequest::GetSessions(SessionsQuery {
+                range: self.state.range.clone(),
+                activity_filter: ActivityFilter::App,
+                subject_query: None,
+            }),
+            Page::Websites => DaemonRequest::GetSessions(SessionsQuery {
+                range: self.state.range.clone(),
+                activity_filter: ActivityFilter::Website,
+                subject_query: None,
+            }),
+            Page::Settings => DaemonRequest::GetSettings,
             _ => return,
         };
 
@@ -106,72 +137,87 @@ impl eframe::App for TmApp {
                 });
             });
 
-        let mut frame = egui::Frame::central_panel(&ctx.style());
-        frame.inner_margin.left = 10;
-        egui::CentralPanel::default().frame(frame).show(ctx, |ui| {
-            components::card::card(ui, |ui| match self.state.page {
-                Page::Overview => match &self.state.overview {
-                    LoadState::Loading => {
-                        ui.label("Loading overview...");
+        egui::CentralPanel::default().show(ctx, |ui| match self.state.page {
+            Page::Overview => match &self.state.overview {
+                LoadState::Loading => {
+                    ui.label("Loading overview...");
+                }
+                LoadState::Loaded(payload) => overview::render(ui, payload),
+                LoadState::Empty => {
+                    ui.label("No overview data yet.");
+                }
+                LoadState::Error(message) => {
+                    ui.label(message);
+                }
+            },
+            Page::Charts => match &self.state.charts {
+                LoadState::Loading => {
+                    ui.label("Loading charts...");
+                }
+                LoadState::Loaded(payload) => charts::render(ui, payload),
+                LoadState::Empty => {
+                    ui.label("No chart data yet.");
+                }
+                LoadState::Error(message) => {
+                    ui.label(message);
+                }
+            },
+            Page::Data => match &self.state.data {
+                LoadState::Loading => {
+                    ui.label("Loading sessions...");
+                }
+                LoadState::Loaded(payload) => data::render(ui, payload),
+                LoadState::Empty => {
+                    ui.label("No sessions yet.");
+                }
+                LoadState::Error(message) => {
+                    ui.label(message);
+                }
+            },
+            Page::Apps => match &self.state.data {
+                LoadState::Loading => {
+                    ui.label("Loading apps...");
+                }
+                LoadState::Loaded(payload) => apps::render(ui, payload),
+                LoadState::Empty => {
+                    ui.label("No app activity recorded.");
+                }
+                LoadState::Error(message) => {
+                    ui.label(message.as_str());
+                }
+            },
+            Page::Websites => match &self.state.data {
+                LoadState::Loading => {
+                    ui.label("Loading websites...");
+                }
+                LoadState::Loaded(payload) => websites::render(ui, payload),
+                LoadState::Empty => {
+                    ui.label("No website activity recorded.");
+                }
+                LoadState::Error(message) => {
+                    ui.label(message.as_str());
+                }
+            },
+            Page::Categories => placeholder::render(ui, "Categories"),
+            Page::Settings => match &mut self.state.settings {
+                LoadState::Loading => {
+                    ui.label("Loading settings...");
+                }
+                LoadState::Loaded(settings) => {
+                    settings::render(ui, settings, &mut self.settings_dirty);
+                    if !self.settings_dirty {
+                        // Reset to Loading after save so we fetch fresh state
+                        self.state.settings = LoadState::Loading;
+                        self.request_current_page();
                     }
-                    LoadState::Loaded(payload) => {
-                        if let Some(event) = overview::render(
-                            ui,
-                            self.state.time_tab,
-                            self.state.overview_more_type,
-                            payload,
-                        ) {
-                            match event {
-                                overview::OverviewEvent::TimeTabChanged(tab) => {
-                                    self.state.time_tab = tab;
-                                    self.state.range = tab.to_range(Utc::now());
-                                    self.state.overview = LoadState::Loading;
-                                    self.state.charts = LoadState::Loading;
-                                    self.state.data = LoadState::Loading;
-                                    self.request_current_page();
-                                }
-                                overview::OverviewEvent::MoreTypeChanged(v) => {
-                                    self.state.overview_more_type = v;
-                                }
-                            }
-                        }
-                    }
-                    LoadState::Empty => {
-                        ui.label("No overview data yet.");
-                    }
-                    LoadState::Error(message) => {
-                        ui.label(message);
-                    }
-                },
-                Page::Charts => match &self.state.charts {
-                    LoadState::Loading => {
-                        ui.label("Loading charts...");
-                    }
-                    LoadState::Loaded(payload) => charts::render(ui, payload),
-                    LoadState::Empty => {
-                        ui.label("No chart data yet.");
-                    }
-                    LoadState::Error(message) => {
-                        ui.label(message);
-                    }
-                },
-                Page::Data => match &self.state.data {
-                    LoadState::Loading => {
-                        ui.label("Loading sessions...");
-                    }
-                    LoadState::Loaded(payload) => data::render(ui, payload),
-                    LoadState::Empty => {
-                        ui.label("No sessions yet.");
-                    }
-                    LoadState::Error(message) => {
-                        ui.label(message);
-                    }
-                },
-                Page::Apps => placeholder::render(ui, "Apps"),
-                Page::Websites => placeholder::render(ui, "Websites"),
-                Page::Categories => placeholder::render(ui, "Categories"),
-                Page::Settings => placeholder::render(ui, "Settings"),
-            });
+                }
+                LoadState::Empty => {
+                    ui.label("No settings available.");
+                }
+                LoadState::Error(message) => {
+                    ui.label(message.as_str());
+                }
+            },
         });
 
         if self.pending.is_none() && matches!(self.state.connection, ConnectionState::Retrying) {

@@ -63,6 +63,13 @@ pub struct ChartBucket {
     pub total_seconds: i64,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Settings {
+    pub idle_threshold_seconds: i64,
+    pub website_tracking_enabled: bool,
+    pub autostart_enabled: bool,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct OverviewResponse {
     pub range: TimeRange,
@@ -110,6 +117,8 @@ pub enum DaemonRequest {
     GetOverview(OverviewQuery),
     GetSessions(SessionsQuery),
     GetCharts(ChartsQuery),
+    GetSettings,
+    UpdateSettings(Settings),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -119,5 +128,6 @@ pub enum DaemonResponse {
     Overview(OverviewResponse),
     Sessions(SessionsResponse),
     Charts(ChartsResponse),
+    Settings(Settings),
     Error { message: String },
 }

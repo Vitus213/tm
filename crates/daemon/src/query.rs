@@ -4,7 +4,7 @@ use chrono::{DateTime, Datelike, TimeZone, Timelike, Utc};
 use tm_core::{ActivityKind, ClosedSession};
 use tm_ipc::{
     ActivityFilter, ChartBucket, ChartsQuery, ChartsResponse, OverviewQuery, OverviewResponse,
-    SessionRow, SessionsQuery, SessionsResponse, SummaryBucket, TimeRange, TrendPoint,
+    SessionRow, SessionsQuery, SessionsResponse, Settings, SummaryBucket, TimeRange, TrendPoint,
 };
 use tm_storage::RepositoryError;
 
@@ -87,6 +87,25 @@ where
 
     pub fn repo(&self) -> &R {
         &self.repo
+    }
+
+    pub async fn get_settings(&self) -> Result<Settings, RepositoryError> {
+        let stored = self.repo.get_settings().await?;
+        Ok(Settings {
+            idle_threshold_seconds: stored.idle_threshold_seconds,
+            website_tracking_enabled: stored.website_tracking_enabled,
+            autostart_enabled: stored.autostart_enabled,
+        })
+    }
+
+    pub async fn update_settings(&self, settings: Settings) -> Result<(), RepositoryError> {
+        self.repo
+            .save_settings(&tm_storage::Settings {
+                idle_threshold_seconds: settings.idle_threshold_seconds,
+                website_tracking_enabled: settings.website_tracking_enabled,
+                autostart_enabled: settings.autostart_enabled,
+            })
+            .await
     }
 }
 

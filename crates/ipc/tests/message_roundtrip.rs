@@ -3,7 +3,7 @@ use serde_json::json;
 use tm_core::ActivityKind;
 use tm_ipc::{
     ActivityFilter, DaemonCommand, DaemonEvent, DaemonRequest, DaemonResponse, OverviewResponse,
-    SessionRow, SessionsQuery, SummaryBucket, TimeRange,
+    SessionRow, SessionsQuery, Settings, SummaryBucket, TimeRange,
 };
 
 #[test]
@@ -106,4 +106,56 @@ fn keeps_existing_operational_command_and_event_roundtrip() {
 
     assert_eq!(cmd, DaemonCommand::FlushActiveSession);
     assert_eq!(evt, DaemonEvent::Ack);
+}
+
+#[test]
+fn serializes_settings_request_and_response() {
+    let request = serde_json::to_value(DaemonRequest::GetSettings).unwrap();
+    assert_eq!(request, json!({"type": "get_settings"}));
+
+    let update = serde_json::to_value(DaemonRequest::UpdateSettings(Settings {
+        idle_threshold_seconds: 600,
+        website_tracking_enabled: false,
+        autostart_enabled: true,
+    }))
+    .unwrap();
+    assert_eq!(
+        update,
+        json!({
+            "type": "update_settings",
+            "idle_threshold_seconds": 600,
+            "website_tracking_enabled": false,
+            "autostart_enabled": true
+        })
+    );
+
+    let response = serde_json::to_value(DaemonResponse::Settings(Settings {
+        idle_threshold_seconds: 300,
+        website_tracking_enabled: true,
+        autostart_enabled: false,
+    }))
+    .unwrap();
+    assert_eq!(
+        response,
+        json!({
+            "type": "settings",
+            "idle_threshold_seconds": 300,
+            "website_tracking_enabled": true,
+            "autostart_enabled": false
+        })
+    );
+}
+
+#[test]
+fn settings_roundtrips_through_json() {
+    let settings = Settings {
+        idle_threshold_seconds: 900,
+        website_tracking_enabled: false,
+        autostart_enabled: true,
+    };
+
+    let json = serde_json::to_string(&settings).unwrap();
+    let back: Settings = serde_json::from_str(&json).unwrap();
+
+    assert_eq!(back, settings);
 }

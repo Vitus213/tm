@@ -1,5 +1,7 @@
 use chrono::{DateTime, Datelike, Duration, NaiveDate, NaiveTime, Utc};
-use tm_ipc::{ChartsResponse, DaemonResponse, OverviewResponse, SessionsResponse, TimeRange};
+use tm_ipc::{
+    ChartsResponse, DaemonResponse, OverviewResponse, SessionsResponse, Settings, TimeRange,
+};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Page {
@@ -103,26 +105,24 @@ pub enum LoadState<T> {
 
 pub struct AppState {
     pub page: Page,
-    pub time_tab: TimeTab,
     pub range: TimeRange,
     pub connection: ConnectionState,
     pub overview: LoadState<OverviewResponse>,
     pub charts: LoadState<ChartsResponse>,
     pub data: LoadState<SessionsResponse>,
-    pub overview_more_type: bool,
+    pub settings: LoadState<Settings>,
 }
 
 impl AppState {
-    pub fn new(range: TimeRange, time_tab: TimeTab) -> Self {
+    pub fn new(range: TimeRange) -> Self {
         Self {
             page: Page::Overview,
-            time_tab,
             range,
             connection: ConnectionState::Retrying,
             overview: LoadState::Loading,
             charts: LoadState::Loading,
             data: LoadState::Loading,
-            overview_more_type: false,
+            settings: LoadState::Loading,
         }
     }
 
@@ -136,6 +136,7 @@ impl AppState {
             Page::Overview => self.overview = LoadState::Error(message),
             Page::Charts => self.charts = LoadState::Error(message),
             Page::Data => self.data = LoadState::Error(message),
+            Page::Settings => self.settings = LoadState::Error(message),
             _ => {}
         }
     }
@@ -168,6 +169,9 @@ impl AppState {
                 } else {
                     LoadState::Loaded(payload)
                 };
+            }
+            DaemonResponse::Settings(payload) => {
+                self.settings = LoadState::Loaded(payload);
             }
             DaemonResponse::Pong | DaemonResponse::Error { .. } => {}
         }

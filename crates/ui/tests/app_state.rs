@@ -2,7 +2,7 @@ use chrono::{TimeZone, Utc};
 use tm_core::ActivityKind;
 use tm_ipc::{
     ActivityFilter, ChartBucket, ChartsResponse, DaemonResponse, OverviewResponse, SessionRow,
-    SessionsResponse, SummaryBucket, TimeRange, TrendPoint,
+    SessionsResponse, Settings, SummaryBucket, TimeRange, TrendPoint,
 };
 use tm_ui::{AppState, ConnectionState, LoadState, Page, TimeTab};
 
@@ -100,6 +100,36 @@ fn charts_response_populates_loaded_chart_state() {
     }));
 
     assert!(matches!(state.charts, LoadState::Loaded(payload) if payload.daily_totals.len() == 1));
+}
+
+#[test]
+fn settings_response_populates_loaded_settings_state() {
+    let mut state = AppState::new(day_range());
+    state.apply_response(DaemonResponse::Settings(Settings {
+        idle_threshold_seconds: 600,
+        website_tracking_enabled: false,
+        autostart_enabled: true,
+    }));
+
+    assert!(matches!(state.connection, ConnectionState::Connected));
+    assert!(
+        matches!(state.settings, LoadState::Loaded(settings) if settings.idle_threshold_seconds == 600)
+    );
+    assert!(
+        matches!(state.settings, LoadState::Loaded(settings) if !settings.website_tracking_enabled)
+    );
+    assert!(matches!(state.settings, LoadState::Loaded(settings) if settings.autostart_enabled));
+}
+
+#[test]
+fn settings_error_on_settings_page_marks_state() {
+    let mut state = AppState::new(day_range());
+    state.select_page(Page::Settings);
+    state.apply_client_error("daemon unreachable".into());
+
+    assert!(
+        matches!(state.settings, LoadState::Error(message) if message.contains("daemon unreachable"))
+    );
 }
 
 fn day_range() -> TimeRange {

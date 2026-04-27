@@ -20,6 +20,8 @@ pub enum FlushOutcome {
 pub trait SessionRepository {
     async fn insert_session(&self, session: &ClosedSession) -> Result<(), RepositoryError>;
     async fn list_sessions(&self) -> Result<Vec<ClosedSession>, RepositoryError>;
+    async fn get_settings(&self) -> Result<tm_storage::Settings, RepositoryError>;
+    async fn save_settings(&self, settings: &tm_storage::Settings) -> Result<(), RepositoryError>;
 }
 
 #[async_trait]
@@ -30,6 +32,14 @@ impl SessionRepository for SqliteRepository {
 
     async fn list_sessions(&self) -> Result<Vec<ClosedSession>, RepositoryError> {
         SqliteRepository::list_sessions(self).await
+    }
+
+    async fn get_settings(&self) -> Result<tm_storage::Settings, RepositoryError> {
+        SqliteRepository::get_settings(self).await
+    }
+
+    async fn save_settings(&self, settings: &tm_storage::Settings) -> Result<(), RepositoryError> {
+        SqliteRepository::save_settings(self, settings).await
     }
 }
 
