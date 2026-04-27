@@ -8,7 +8,7 @@ use tm_ui::{AppState, ConnectionState, LoadState, Page, TimeTab};
 
 #[test]
 fn disconnected_error_marks_connection_state_and_current_page() {
-    let mut state = AppState::new(day_range(), TimeTab::Today);
+    let mut state = AppState::new(day_range());
     state.select_page(Page::Overview);
     state.apply_client_error("socket missing".into());
 
@@ -20,7 +20,7 @@ fn disconnected_error_marks_connection_state_and_current_page() {
 
 #[test]
 fn overview_response_populates_loaded_state() {
-    let mut state = AppState::new(day_range(), TimeTab::Today);
+    let mut state = AppState::new(day_range());
     state.apply_response(DaemonResponse::Overview(OverviewResponse {
         range: day_range(),
         total_seconds: 900,
@@ -54,7 +54,7 @@ fn overview_response_populates_loaded_state() {
 
 #[test]
 fn sessions_response_populates_loaded_data_state() {
-    let mut state = AppState::new(day_range(), TimeTab::Today);
+    let mut state = AppState::new(day_range());
     state.apply_response(DaemonResponse::Sessions(SessionsResponse {
         range: day_range(),
         activity_filter: ActivityFilter::All,
@@ -74,7 +74,7 @@ fn sessions_response_populates_loaded_data_state() {
 
 #[test]
 fn charts_response_populates_loaded_chart_state() {
-    let mut state = AppState::new(day_range(), TimeTab::Today);
+    let mut state = AppState::new(day_range());
     state.apply_response(DaemonResponse::Charts(ChartsResponse {
         range: day_range(),
         app_share: vec![SummaryBucket {
