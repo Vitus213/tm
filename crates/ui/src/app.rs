@@ -110,12 +110,12 @@ impl eframe::App for TmApp {
                 ui.add_space(GAP_SM);
                 ui.vertical(|ui| {
                     for (icon, label, page) in [
-                        ("◆", "Overview", Page::Overview),
-                        ("◈", "Charts", Page::Charts),
-                        ("▤", "Data", Page::Data),
-                        ("▣", "Apps", Page::Apps),
-                        ("▥", "Websites", Page::Websites),
-                        ("▦", "Categories", Page::Categories),
+                        ("📊", "Overview", Page::Overview),
+                        ("📈", "Charts", Page::Charts),
+                        ("📋", "Data", Page::Data),
+                        ("📱", "Apps", Page::Apps),
+                        ("🌐", "Websites", Page::Websites),
+                        ("📁", "Categories", Page::Categories),
                     ] {
                         if nav_button::nav_button(
                             ui,
@@ -132,7 +132,7 @@ impl eframe::App for TmApp {
                     separator(ui);
                     if nav_button::nav_button(
                         ui,
-                        "◉",
+                        "⚙️",
                         "Settings",
                         self.state.page == Page::Settings,
                     ) {
