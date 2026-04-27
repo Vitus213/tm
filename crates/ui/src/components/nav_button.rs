@@ -1,52 +1,43 @@
+use crate::design::*;
 use eframe::egui;
 
-/// Renders a vertical navigation button with an icon and label.
-///
-/// The button has a fixed width of 80px, centers its content vertically
-/// and horizontally, and shows a left indicator strip when selected.
 pub fn nav_button(ui: &mut egui::Ui, icon: &str, label: &str, selected: bool) -> bool {
-    let icon_size = 20.0;
-    let label_size = 12.0;
-    let gap = 4.0;
-
-    let content_height = icon_size + gap + label_size;
-    let button_height = content_height + 16.0; // 8px top + 8px bottom padding
-    let desired_size = egui::vec2(80.0, button_height);
+    let desired_size = egui::vec2(NAV_WIDTH, 64.0);
     let (rect, response) = ui.allocate_exact_size(desired_size, egui::Sense::click());
 
     if ui.is_rect_visible(rect) {
-        let visuals = ui.style().interact(&response);
-        let text_color = visuals.text_color();
-
-        let bg_fill = if selected {
-            ui.visuals().selection.bg_fill.gamma_multiply(0.3)
+        let bg_color = if selected {
+            ACCENT_DIM
         } else if response.hovered() {
-            ui.visuals().widgets.hovered.bg_fill.gamma_multiply(0.2)
+            BG_ELEVATED
         } else {
             egui::Color32::TRANSPARENT
         };
 
-        if bg_fill != egui::Color32::TRANSPARENT {
-            ui.painter().rect_filled(rect, 0.0, bg_fill);
+        if bg_color != egui::Color32::TRANSPARENT {
+            let bg_rect = rect.shrink2(egui::vec2(GAP_XS, GAP_XS));
+            ui.painter().rect_filled(bg_rect, RADIUS_SM, bg_color);
         }
 
         if selected {
-            let strip_rect =
-                egui::Rect::from_min_size(rect.left_top(), egui::vec2(2.0, rect.height()));
-            ui.painter()
-                .rect_filled(strip_rect, 0.0, ui.visuals().selection.bg_fill);
+            let indicator_rect = egui::Rect::from_min_size(
+                rect.left_top() + egui::vec2(0.0, GAP_SM),
+                egui::vec2(3.0, rect.height() - GAP_SM * 2.0),
+            );
+            ui.painter().rect_filled(indicator_rect, RADIUS_SM, ACCENT);
         }
 
-        // Use egui's layout system for text positioning
+        let text_color = if selected || response.hovered() {
+            TEXT_PRIMARY
+        } else {
+            TEXT_SECONDARY
+        };
+
         let mut child_ui = ui.new_child(egui::UiBuilder::new().max_rect(rect));
         child_ui.vertical_centered(|ui| {
-            ui.label(egui::RichText::new(icon).size(icon_size).color(text_color));
-            ui.add_space(gap);
-            ui.label(
-                egui::RichText::new(label)
-                    .size(label_size)
-                    .color(text_color),
-            );
+            ui.label(egui::RichText::new(icon).size(20.0).color(text_color));
+            ui.add_space(GAP_XS);
+            ui.label(egui::RichText::new(label).size(TEXT_XS).color(text_color));
         });
     }
 

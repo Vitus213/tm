@@ -1,6 +1,11 @@
 use eframe::egui;
 use tm_ipc::OverviewResponse;
 
+use crate::design::{
+    card_frame, inner_card_frame, header_text, section_title, body_text, muted_text, stat_value,
+    ACCENT, ACCENT_SECONDARY, BG_ELEVATED, TEXT_MUTED, RADIUS_SM, GAP_XS, GAP_SM, GAP_MD, GAP_LG,
+    GAP_XL,
+};
 use crate::format::format_duration_minutes_style;
 use crate::state::TimeTab;
 
@@ -18,9 +23,8 @@ pub fn render(
 ) -> Option<OverviewEvent> {
     let mut event = None;
 
-    // A. Header row
     ui.horizontal(|ui| {
-        ui.heading("Overview");
+        ui.label(header_text("Overview"));
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
             let labels = &["Today", "Week", "Month", "Year"];
             let selected_index = time_tab as usize;
@@ -37,40 +41,114 @@ pub fn render(
         });
     });
 
-    ui.add_space(16.0);
+    ui.add_space(GAP_LG);
 
-    // B. "Most Frequent" section
-    ui.label(
-        egui::RichText::new("Most Frequent")
-            .small()
-            .color(ui.visuals().weak_text_color()),
-    );
-    ui.add_space(8.0);
+    let total_duration = format_duration_minutes_style(payload.total_seconds);
+    let (top_app_name, top_app_duration) = payload
+        .top_apps
+        .first()
+        .map(|a| {
+            let name = if a.title.is_empty() {
+                a.subject_id.clone()
+            } else {
+                a.title.clone()
+            };
+            let dur = format_duration_minutes_style(a.total_seconds);
+            (name, dur)
+        })
+        .unwrap_or_else(|| ("-".to_string(), "-".to_string()));
+    let (top_website_name, top_website_duration) = payload
+        .top_websites
+        .first()
+        .map(|w| {
+            let name = if w.title.is_empty() {
+                w.subject_id.clone()
+            } else {
+                w.title.clone()
+            };
+            let dur = format_duration_minutes_style(w.total_seconds);
+            (name, dur)
+        })
+        .unwrap_or_else(|| ("-".to_string(), "-".to_string()));
+    let session_count = payload.recent_sessions.len().to_string();
+
+    ui.horizontal(|ui| {
+        let gap = GAP_MD;
+        let count = 4.0;
+        let width = (ui.available_width() - gap * (count - 1.0)) / count;
+
+        ui.allocate_ui_with_layout(
+            egui::vec2(width, 0.0),
+            egui::Layout::top_down(egui::Align::LEFT),
+            |ui| {
+                card_frame().show(ui, |ui| {
+                    ui.label(muted_text("Total Time"));
+                    ui.add_space(GAP_XS);
+                    ui.label(stat_value(total_duration));
+                });
+            },
+        );
+        ui.add_space(gap);
+
+        ui.allocate_ui_with_layout(
+            egui::vec2(width, 0.0),
+            egui::Layout::top_down(egui::Align::LEFT),
+            |ui| {
+                card_frame().show(ui, |ui| {
+                    ui.label(muted_text("Top App"));
+                    ui.add_space(GAP_XS);
+                    ui.label(body_text(top_app_name));
+                    ui.label(muted_text(top_app_duration));
+                });
+            },
+        );
+        ui.add_space(gap);
+
+        ui.allocate_ui_with_layout(
+            egui::vec2(width, 0.0),
+            egui::Layout::top_down(egui::Align::LEFT),
+            |ui| {
+                card_frame().show(ui, |ui| {
+                    ui.label(muted_text("Top Website"));
+                    ui.add_space(GAP_XS);
+                    ui.label(body_text(top_website_name));
+                    ui.label(muted_text(top_website_duration));
+                });
+            },
+        );
+        ui.add_space(gap);
+
+        ui.allocate_ui_with_layout(
+            egui::vec2(width, 0.0),
+            egui::Layout::top_down(egui::Align::LEFT),
+            |ui| {
+                card_frame().show(ui, |ui| {
+                    ui.label(muted_text("Sessions"));
+                    ui.add_space(GAP_XS);
+                    ui.label(stat_value(session_count));
+                });
+            },
+        );
+    });
+
+    ui.add_space(GAP_XL);
+
+    ui.label(section_title("Most Frequent"));
+    ui.add_space(GAP_MD);
 
     ui.horizontal(|ui| {
         let total_width = ui.available_width();
-        let gap = 10.0;
+        let gap = GAP_LG;
         let left_width = (total_width - gap) * 0.6;
         let right_width = (total_width - gap) * 0.4;
 
-        // Left Card — Apps
         let left_response = ui.allocate_ui_with_layout(
             egui::vec2(left_width, 0.0),
             egui::Layout::top_down(egui::Align::LEFT),
             |ui| {
-                let frame = egui::Frame::new()
-                    .corner_radius(10.0)
-                    .fill(ui.visuals().panel_fill)
-                    .inner_margin(10.0);
-                let inner = frame.show(ui, |ui| {
-                    badge_header(
-                        ui,
-                        "📱",
-                        "App",
-                        egui::Color32::from_rgb(59, 130, 246),
-                        egui::Color32::WHITE,
-                    );
-                    ui.add_space(8.0);
+                let response = inner_card_frame().show(ui, |ui| {
+                    badge_header(ui, "App", ACCENT);
+                    ui.add_space(GAP_SM);
                     for row in payload.top_apps.iter().take(5) {
                         let name = if row.title.is_empty() {
                             &row.subject_id
@@ -78,40 +156,29 @@ pub fn render(
                             &row.title
                         };
                         let duration = format_duration_minutes_style(row.total_seconds);
-                        app_list_row(ui, 20.0, name, &duration);
+                        list_row(ui, name, &duration);
                     }
                 });
-                let rect = inner.response.rect;
+                let rect = response.response.rect;
                 ui.painter().text(
-                    rect.max - egui::vec2(10.0, 10.0),
+                    rect.max - egui::vec2(GAP_MD, GAP_MD),
                     egui::Align2::RIGHT_BOTTOM,
                     "📱",
-                    egui::FontId::proportional(80.0),
-                    ui.visuals().widgets.inactive.bg_fill.gamma_multiply(0.1),
+                    egui::FontId::proportional(64.0),
+                    TEXT_MUTED.gamma_multiply(0.12),
                 );
             },
         );
 
         ui.add_space(gap);
 
-        // Right Card — Websites
         ui.allocate_ui_with_layout(
             egui::vec2(right_width, left_response.response.rect.height()),
             egui::Layout::top_down(egui::Align::LEFT),
             |ui| {
-                let frame = egui::Frame::new()
-                    .corner_radius(10.0)
-                    .fill(ui.visuals().selection.bg_fill.gamma_multiply(0.08))
-                    .inner_margin(10.0);
-                let inner = frame.show(ui, |ui| {
-                    badge_header(
-                        ui,
-                        "🌐",
-                        "Website",
-                        egui::Color32::from_rgb(139, 92, 246),
-                        egui::Color32::WHITE,
-                    );
-                    ui.add_space(8.0);
+                let response = inner_card_frame().show(ui, |ui| {
+                    badge_header(ui, "Website", ACCENT_SECONDARY);
+                    ui.add_space(GAP_SM);
                     for row in payload.top_websites.iter().take(5) {
                         let name = if row.title.is_empty() {
                             &row.subject_id
@@ -119,26 +186,25 @@ pub fn render(
                             &row.title
                         };
                         let duration = format_duration_minutes_style(row.total_seconds);
-                        app_list_row(ui, 18.0, name, &duration);
+                        list_row(ui, name, &duration);
                     }
                 });
-                let rect = inner.response.rect;
+                let rect = response.response.rect;
                 ui.painter().text(
-                    rect.max - egui::vec2(10.0, 10.0),
+                    rect.max - egui::vec2(GAP_MD, GAP_MD),
                     egui::Align2::RIGHT_BOTTOM,
                     "🌐",
-                    egui::FontId::proportional(80.0),
-                    ui.visuals().widgets.inactive.bg_fill.gamma_multiply(0.05),
+                    egui::FontId::proportional(64.0),
+                    TEXT_MUTED.gamma_multiply(0.08),
                 );
             },
         );
     });
 
-    ui.add_space(24.0);
+    ui.add_space(GAP_XL);
 
-    // C. "More" section
     ui.horizontal(|ui| {
-        ui.label("More");
+        ui.label(section_title("More"));
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
             let new_type =
                 crate::components::tab_switch::tab_switch(ui, ("Apps", "Websites"), more_type);
@@ -147,9 +213,8 @@ pub fn render(
             }
         });
     });
-    ui.add_space(8.0);
+    ui.add_space(GAP_MD);
 
-    // Content area
     let items = if !more_type {
         &payload.more_apps
     } else {
@@ -165,65 +230,59 @@ pub fn render(
                 &row.title
             };
             let duration = format_duration_minutes_style(row.total_seconds);
-            app_card(ui, name, &duration);
-            ui.add_space(8.0);
+            more_card(ui, name, &duration);
+            ui.add_space(GAP_SM);
         }
     });
 
     event
 }
 
-fn badge_header(
-    ui: &mut egui::Ui,
-    icon: &str,
-    label: &str,
-    bg_color: egui::Color32,
-    text_color: egui::Color32,
-) {
+fn badge_header(ui: &mut egui::Ui, label: &str, color: egui::Color32) {
     let frame = egui::Frame::new()
-        .corner_radius(4.0)
-        .fill(bg_color)
-        .inner_margin(egui::Margin::symmetric(6, 2));
+        .corner_radius(RADIUS_SM)
+        .fill(color.gamma_multiply(0.2))
+        .stroke(egui::Stroke::new(1.0, color.gamma_multiply(0.5)))
+        .inner_margin(egui::Margin::symmetric(GAP_SM as i8, GAP_XS as i8));
     frame.show(ui, |ui| {
         ui.label(
-            egui::RichText::new(format!("{} {}", icon, label))
-                .size(12.0)
-                .color(text_color),
+            egui::RichText::new(label)
+                .size(11.0)
+                .color(color)
+                .strong(),
         );
     });
 }
 
-fn app_list_row(ui: &mut egui::Ui, icon_size: f32, name: &str, duration: &str) {
+fn list_row(ui: &mut egui::Ui, name: &str, duration: &str) {
     ui.horizontal(|ui| {
+        let icon_size = 20.0;
         let (rect, _response) =
             ui.allocate_exact_size(egui::vec2(icon_size, icon_size), egui::Sense::hover());
-        ui.painter()
-            .rect_filled(rect, 4.0, ui.visuals().widgets.inactive.bg_fill);
-        ui.label(name);
+        ui.painter().rect_filled(rect, RADIUS_SM, BG_ELEVATED);
+        ui.label(body_text(name));
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-            ui.label(duration);
+            ui.label(muted_text(duration));
         });
     });
+    ui.add_space(GAP_XS);
 }
 
-fn app_card(ui: &mut egui::Ui, name: &str, duration: &str) {
-    let card_width = 100.0;
+fn more_card(ui: &mut egui::Ui, name: &str, duration: &str) {
+    let card_width = 120.0;
     ui.allocate_ui_with_layout(
-        egui::vec2(card_width, 90.0),
+        egui::vec2(card_width, 100.0),
         egui::Layout::top_down(egui::Align::Center),
         |ui| {
-            let icon_size = 32.0;
-            let (rect, _response) =
-                ui.allocate_exact_size(egui::vec2(icon_size, icon_size), egui::Sense::hover());
-            ui.painter()
-                .rect_filled(rect, 6.0, ui.visuals().widgets.inactive.bg_fill);
-            ui.add_space(4.0);
-            ui.label(egui::RichText::new(name).size(11.0));
-            ui.label(
-                egui::RichText::new(duration)
-                    .small()
-                    .color(ui.visuals().weak_text_color()),
-            );
+            inner_card_frame().show(ui, |ui| {
+                let icon_size = 36.0;
+                let (rect, _response) =
+                    ui.allocate_exact_size(egui::vec2(icon_size, icon_size), egui::Sense::hover());
+                ui.painter().rect_filled(rect, RADIUS_SM, BG_ELEVATED);
+                ui.add_space(GAP_SM);
+                ui.label(body_text(name));
+                ui.label(muted_text(duration));
+            });
         },
     );
 }

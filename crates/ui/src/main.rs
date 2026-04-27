@@ -3,6 +3,9 @@ fn main() -> eframe::Result<()> {
     eframe::run_native(
         "tm",
         options,
-        Box::new(|_cc| Ok(Box::new(tm_ui::TmApp::default()))),
+        Box::new(|cc| {
+            tm_ui::design::apply_theme(&cc.egui_ctx);
+            Ok(Box::new(tm_ui::TmApp::default()))
+        }),
     )
 }

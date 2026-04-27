@@ -1,6 +1,7 @@
 pub mod app;
 pub mod client;
 pub mod components;
+pub mod design;
 mod format;
 pub mod pages;
 pub mod state;
